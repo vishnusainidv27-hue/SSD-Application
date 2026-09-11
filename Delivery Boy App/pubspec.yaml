@@ -1,0 +1,24 @@
+name: delivery_boy_app
+description: SSD Farm - Delivery Boy app (Android & iOS).
+version: 0.1.0+1
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  firebase_core: ^3.0.0
+  ssd_shared:
+    path: ../shared/ssd_shared
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

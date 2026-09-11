@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // TODO (Phase 1 onward): tighten these as each collection is built.
+    // Guiding rules from Requirements §2.4 / §10:
+    //  - Admin (role == 'admin') can read/write everything.
+    //  - A customer can only read/write their own `customers/{id}` and
+    //    their own `deliveryExceptions` requests.
+    //  - A delivery boy can only read deliveries assigned to them and
+    //    update status/remark on those documents.
+    //  - Only Admin can write to `priceList`.
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || role() == 'admin');
+      allow write: if isSignedIn() && role() == 'admin';
+    }
+
+    match /priceList/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && role() == 'admin';
+    }
+
+    // Placeholder — replace with real per-collection rules as each
+    // phase introduces customers, subscriptions, deliveries, bills, etc.
+    match /{document=**} {
+      allow read, write: if isSignedIn() && role() == 'admin';
+    }
+  }
+}
