@@ -33,3 +33,7 @@ firebase/firebase-debug.log
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code / tool logs
+.claude/
+firebase-debug.log
