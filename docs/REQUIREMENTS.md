@@ -278,6 +278,8 @@ This is one of the most important business rules and is treated as a first-class
 
 - Create/edit/deactivate delivery boy accounts (name, mobile, password, assigned societies/routes, and a profile photo — photo upload is deferred: it needs Cloud Storage, which is not enabled on the Spark plan; on hold pending a future Blaze-plan decision, see § 2.4)
 
+- Delivery boy logins are created through the same screen/flow as customer logins, so the same copy/share credentials step described in § 4.2.1 applies: after creation Admin gets the mobile number and password with Copy and Share buttons and a pre-filled message to send to the delivery boy. As with customers, passwords are set and changed only by Admin
+
 - Assign or reassign customers to a delivery boy
 
 - View each delivery boy's daily performance: assigned vs. completed deliveries, remarks raised, punctuality
