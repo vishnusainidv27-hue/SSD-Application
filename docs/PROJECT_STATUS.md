@@ -166,9 +166,15 @@ Companion docs in this same `docs/` folder:
     (`changeUserPassword` signs in as them), so Admin must have kept the
     password from the share step.
 - Phase 3 — Pricing engine & delivery calendar: not started.
-- Phase 4 — Customer App (login, delivery history, bill view): not started.
-  Note: `Customer App/` has NOT had `flutter create` run yet — no
-  android/ios folders exist there yet.
+- Phase 4 — Customer App (login, delivery history, bill view): shell only so far,
+  on branch `feature/phase-4-customer-history-billing`. `flutter create` has been
+  run, the app is registered in Firebase (`ssd-farm`; Android
+  `com.ssdfarm.customer_app`, iOS `com.ssdfarm.customerApp`), and it has a
+  customer-only login gate + placeholder home screen. Login verified on a real
+  phone. Dashboard, history and bill screens (and Firestore rules letting a
+  customer read their own data) are not built yet.
+  `android/app/google-services.json` is gitignored — regenerate with
+  `flutterfire configure --project=ssd-farm` after a fresh clone.
 - Phase 5 — Customer request/approval workflow: not started.
 - Phase 6 — Delivery Boy App (daily delivery workflow): not started.
   Note: `Delivery Boy App/` also has NOT had `flutter create` run yet.
