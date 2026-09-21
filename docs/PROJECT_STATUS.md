@@ -39,6 +39,14 @@ Companion docs in this same `docs/` folder:
   it with `AuthService.changeUserPassword` — which always works because Admin is
   the only one who ever sets or knows the current password. Self-service reset is
   a future upgrade path only if the project moves to Blaze and adds SMS.
+  - **Enforcement caveat (accepted risk, not a gap to fix)**: this rule is
+    enforced only by the app never exposing a change-password UI to non-admin
+    users. Firebase Auth has no equivalent of Firestore security rules, so
+    nothing server-side stops a signed-in user from calling `updatePassword` on
+    their own account. This is accepted and documented, given the low
+    sophistication and low incentive of this app's actual user base (milk
+    delivery customers and delivery staff). Revisit only if the project ever
+    moves to Blaze and adds a Cloud Function to enforce it properly.
 - **Dev environment**: Windows for all Android development; a Mac is only
   needed later for the final iOS build/release (App Store/Xcode signing).
 - **IDE**: VS Code + Claude Code extension is now the ONLY place development
@@ -112,7 +120,10 @@ Companion docs in this same `docs/` folder:
   map pin, milk subscription setup) **vs Phase 3** (pricing engine:
   date-effective pricing, delivery exceptions calendar). Not yet decided —
   ask the user which to do first before starting new feature work.
-- Phase 2 — Admin customer onboarding: not started.
+- Phase 2 — Admin customer onboarding: not started. Scope also includes an Admin
+  "reset this user's password" action (calling `AuthService.changeUserPassword`),
+  built alongside the edit/deactivate/reactivate customer-list features already
+  planned in Requirements §4.3 — no Admin UI currently calls `changeUserPassword`.
 - Phase 3 — Pricing engine & delivery calendar: not started.
 - Phase 4 — Customer App (login, delivery history, bill view): not started.
   Note: `Customer App/` has NOT had `flutter create` run yet — no
