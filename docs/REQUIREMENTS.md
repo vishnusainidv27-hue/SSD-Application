@@ -12,15 +12,15 @@ Version 1.0 | Prepared: September 2026
 
 # Document Control
 
-| **Field**            | **Details**                                                                              |
-|----------------------|------------------------------------------------------------------------------------------|
-| Document Title       | SSD Farm – Milk Delivery Application Requirements Specification                          |
-| Version              | 1.0 (Draft for Review)                                                                   |
-| Prepared For         | SSD Farm                                                                                 |
-| Applications Covered | 1. Customer App 2. Delivery Boy App 3. Admin App/Panel                                  |
-| Target Platforms     | Android (phone), iOS (iPhone) – single codebase for all three apps                       |
-| Backend              | Firebase (Authentication, Firestore, Cloud Functions, Cloud Messaging, Storage, Hosting) |
-| Status               | Awaiting client sign-off before development start                                        |
+| **Field**            | **Details**                                                                                                                      |
+|----------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| Document Title       | SSD Farm – Milk Delivery Application Requirements Specification                                                                  |
+| Version              | 1.0 (Draft for Review)                                                                                                           |
+| Prepared For         | SSD Farm                                                                                                                         |
+| Applications Covered | 1. Customer App 2. Delivery Boy App 3. Admin App/Panel                                                                           |
+| Target Platforms     | Android (phone), iOS (iPhone) – single codebase for all three apps                                                               |
+| Backend              | Firebase Spark (free) plan: Authentication, Firestore, Hosting (optional web panel). See § 2.4 for the current backend decision. |
+| Status               | Awaiting client sign-off before development start                                                                                |
 
 # 1. Introduction & Project Overview
 
@@ -91,7 +91,7 @@ The project is set up so that day-to-day development, building, and testing can 
 
 - Practical workflow: build and validate all app logic, screens, and Firebase integration on Windows against Android first (this covers roughly 95% of development, since the Flutter code is shared). Once a feature/app is stable, do a periodic iOS build-and-check pass on a Mac.
 
-- If a physical Mac is not available for those periodic iOS passes, cloud Mac build services (e.g. Codemagic, GitHub Actions macOS runners, or a rented/virtual Mac) can run \`flutter build ios\` and produce a signed .ipa without owning a Mac full-time — useful as a fallback, though a MacBook remains the simplest option when one is available, as you noted.
+- If a physical Mac is not available for those periodic iOS passes, cloud Mac build services (e.g. Codemagic, GitHub Actions macOS runners, or a rented/virtual Mac) can run `flutter build ios` and produce a signed .ipa without owning a Mac full-time — useful as a fallback, though a MacBook remains the simplest option when one is available, as you noted.
 
 - Recommendation: keep an Apple Developer account ready (needed for any iOS release regardless of which Mac/service is used) so the iOS pass isn't blocked later by account setup.
 
@@ -172,7 +172,7 @@ Only the Admin can create a customer account. The Admin fills in a structured on
 
 - Mobile number (primary) + optional alternate number
 
-4.2.3 Structured Address (as requested: society → block → floor → flat)
+### 4.2.3 Structured Address (as requested: society → block → floor → flat)
 
 - Society / Colony name
 
@@ -339,17 +339,17 @@ This is one of the most important business rules and is treated as a first-class
 
 This directly implements the requested rule that any change must ask whether it applies to one day only or from that date onward, and always requires Admin approval before taking effect.
 
-6.  Customer selects an upcoming date (past/today's already-in-progress delivery cannot be changed).
+1.  Customer selects an upcoming date (past/today's already-in-progress delivery cannot be changed).
 
-7.  Customer chooses: “Skip delivery on this date” or “Change quantity”.
+2.  Customer chooses: “Skip delivery on this date” or “Change quantity”.
 
-8.  If changing quantity, the app asks: “Apply for this date only” or “Apply from this date onward (until changed again)”.
+3.  If changing quantity, the app asks: “Apply for this date only” or “Apply from this date onward (until changed again)”.
 
-9.  Customer enters/selects the new quantity (500 ml / 1 L / 1.5 L / 2 L / custom) and submits.
+4.  Customer enters/selects the new quantity (500 ml / 1 L / 1.5 L / 2 L / custom) and submits.
 
-10. Request status shows as “Pending Admin Approval”; the old/default quantity remains in effect until approved.
+5.  Request status shows as “Pending Admin Approval”; the old/default quantity remains in effect until approved.
 
-11. Once Admin approves, the delivery plan updates automatically and the customer is notified; if rejected, the customer is notified with the Admin's note and the original plan continues.
+6.  Once Admin approves, the delivery plan updates automatically and the customer is notified; if rejected, the customer is notified with the Admin's note and the original plan continues.
 
 - Customer can view the status and history of all their past requests (Pending / Approved / Rejected).
 
@@ -405,7 +405,7 @@ This directly implements the requested rule that any change must ask whether it 
 
 - Firebase Authentication for all three apps, with role stored in each user's Firestore profile document to route them to the correct app experience/permissions
 
-- Firebase Cloud Messaging push notifications across all apps
+- In-app notification centre across all apps, built on a live Firestore listener (see § 2.4); FCM lock-screen push is deferred until the project moves to the Blaze plan, if ever needed
 
 - Multi-language support ready (English + Hindi, extensible) — recommended given the target user base
 
@@ -427,9 +427,9 @@ Illustrative collection structure; final field-level schema to be confirmed duri
 | deliveryExceptions | customerRef, date, type (skip/quantityChange), requestedQty, appliesFrom (single/onward), status (pending/approved/rejected), approvedBy | Drives both the approval queue and the delivery-boy's daily list |
 | deliveries         | customerRef, date, milkType, quantity, rateApplied, status (delivered/notDelivered/skipped), remark, deliveryBoyRef, timestamp           | One doc per customer per day — the core transactional record     |
 | priceList          | milkType, rate, effectiveFrom, effectiveTo, changedBy                                                                                    | Append-only; never edit a closed price record                    |
-| bills              | customerRef, periodFrom, periodTo, lineItems\[\], totalAmount, previousDue, amountPaid, netPayable, status                               | Generated from \`deliveries\` + \`priceList\`                    |
+| bills              | customerRef, periodFrom, periodTo, lineItems[], totalAmount, previousDue, amountPaid, netPayable, status                                 | Generated from `deliveries` + `priceList`                        |
 | payments           | customerRef, billRef, amount, mode, date, recordedBy                                                                                     |                                                                  |
-| deliveryBoys       | userRef, assignedSocieties\[\], active                                                                                                   |                                                                  |
+| deliveryBoys       | userRef, assignedSocieties[], active                                                                                                     |                                                                  |
 | notifications      | targetUserRef, type, message, read, createdAt                                                                                            |                                                                  |
 
 # 9. Worked Example – Date-Effective Billing
@@ -446,16 +446,16 @@ To make the pricing rule concrete for development and testing:
 
 # 10. Non-Functional Requirements
 
-| **Category**      | **Requirement**                                                                                                                                                                                                                                 |
-|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Platform coverage | Every app (Admin, Customer, Delivery Boy) must run natively on Android and iOS from one shared codebase                                                                                                                                         |
-| Performance       | Delivery list and dashboard should load within 2–3 seconds on a typical 4G connection                                                                                                                                                           |
-| Reliability       | Delivery Boy app must tolerate intermittent connectivity with local caching and auto-sync                                                                                                                                                       |
-| Security          | Passwords stored using Firebase Auth's secure hashing; Firestore Security Rules enforce that a customer can only read/write their own data, a delivery boy can only see their assigned deliveries, and only Admin can write pricing/master data |
-| Scalability       | Firestore + Cloud Functions scale automatically; architecture should comfortably support growth from hundreds to tens of thousands of daily deliveries                                                                                          |
-| Auditability      | All price changes, approvals, and account changes are logged with user and timestamp                                                                                                                                                            |
-| Backup            | Regular Firestore export/backup schedule via Cloud Functions or Firebase's managed backups                                                                                                                                                      |
-| Localization      | UI text structured for easy translation (English/Hindi at minimum)                                                                                                                                                                              |
+| **Category**      | **Requirement**                                                                                                                                                                                                                                       |
+|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Platform coverage | Every app (Admin, Customer, Delivery Boy) must run natively on Android and iOS from one shared codebase                                                                                                                                               |
+| Performance       | Delivery list and dashboard should load within 2–3 seconds on a typical 4G connection                                                                                                                                                                 |
+| Reliability       | Delivery Boy app must tolerate intermittent connectivity with local caching and auto-sync                                                                                                                                                             |
+| Security          | Passwords stored using Firebase Auth's secure hashing; Firestore Security Rules enforce that a customer can only read/write their own data, a delivery boy can only see their assigned deliveries, and only Admin can write pricing/master data       |
+| Scalability       | Firestore scales automatically; on the Spark plan the design targets hundreds of customers with daily deliveries within the free daily quotas (§ 2.4), with an upgrade path to the Blaze plan for growth toward tens of thousands of daily deliveries |
+| Auditability      | All price changes, approvals, and account changes are logged with user and timestamp                                                                                                                                                                  |
+| Backup            | Data export from the Admin app (CSV/PDF/Excel reports, § 4.9); automated scheduled Firestore backups would need the Blaze plan and are deferred (§ 2.4)                                                                                               |
+| Localization      | UI text structured for easy translation (English/Hindi at minimum)                                                                                                                                                                                    |
 
 # 11. Assumptions & Open Questions
 
@@ -493,8 +493,8 @@ To make the pricing rule concrete for development and testing:
 
 This document is intended to be reviewed and confirmed by the client before design and development begin. Please mark against each major section: Approved / Needs Change, and add notes for anything that should be adjusted.
 
-| **Section**                      | **Approved (Y/N)** | **Comments** |
-|----------------------------------|--------------------|--------------|
+| **Section**                     | **Approved (Y/N)** | **Comments** |
+|---------------------------------|--------------------|--------------|
 | 4. Admin App                    |                    |              |
 | 5. Customer App                 |                    |              |
 | 6. Delivery Boy App             |                    |              |
