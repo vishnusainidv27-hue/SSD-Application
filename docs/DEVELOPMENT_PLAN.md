@@ -26,15 +26,15 @@ A single Git repository (“monorepo”) holds all three apps plus a shared pack
 
 ```
 SSD-Application/
-├── docs/ Requirements doc + this Development Plan
-├── firebase/ Shared Firestore/Storage security rules
+├── docs/              Requirements doc + this Development Plan
+├── firebase/          Shared Firestore/Storage security rules
 ├── shared/
-│ └── ssd_shared/ Shared Dart package: models, Firebase services, theme
+│   └── ssd_shared/    Shared Dart package: models, Firebase services, theme
 ├── Admin App/
-│ ├── Mobile app/ Flutter app — Android + iOS (Admin)
-│ └── Web/ Flutter web build of the Admin panel
-├── Delivery Boy App/ Flutter app — Android + iOS
-└── Customer App/ Flutter app — Android + iOS
+│   ├── Mobile app/    Flutter app — Android + iOS (Admin)
+│   └── Web/           Flutter web build of the Admin panel
+├── Delivery Boy App/  Flutter app — Android + iOS
+└── Customer App/      Flutter app — Android + iOS
 ```
 
 Why a shared package: the Admin, Customer, and Delivery Boy apps all read/write the same Firestore collections (customers, subscriptions, deliveries, priceList, bills). Keeping the data models, Firebase access code, and the pricing/billing calculation logic in one shared package (ssd_shared) means that logic is written once and reused by all three apps and both Admin targets (Mobile + Web) — instead of being copy-pasted four times and drifting out of sync.

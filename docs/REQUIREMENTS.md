@@ -57,7 +57,7 @@ This section reflects the requirement that all apps run on both Android and iPho
 | Mobile framework          | Flutter (Dart) – 3 separate apps built from a shared internal package                         | One codebase per app compiles to both Android (.apk/.aab) and iOS (.ipa). Avoids maintaining two native codebases. Everything in this document — all 3 apps, Admin logic, Firebase integration — is fully buildable in Flutter alone, so no second framework is needed. |
 | Authentication            | Firebase Authentication (email/password sign-in, used internally)                             | User only ever sees “mobile number + password”; see the finalized approach just below this table.                                                                                                                                                                       |
 | Database                  | Cloud Firestore                                                                               | Real-time NoSQL database; all master data, subscriptions, deliveries, billing records.                                                                                                                                                                                  |
-| File storage              | Firebase Storage                                                                              | Profile photos, delivery-proof photos (optional), signed documents.                                                                                                                                                                                                     |
+| File storage              | Firebase Storage — deferred (not enabled on the Spark plan; see § 2.4)                        | Profile photos, delivery-proof photos (optional), signed documents. Planned functionality, on hold until a future Blaze-plan decision.                                                                                                                                  |
 | Server logic              | Handled inside the Flutter apps (Admin app) instead of Cloud Functions — see § 2.4            | Price-effective billing calculation, quantity-change approval, and delivery-list generation run as in-app Dart logic reading/writing Firestore directly, so no paid Cloud Functions plan is required.                                                                   |
 | Push notifications        | In-app notification centre via Firestore (real-time listener), FCM added later only if needed | Delivery updates, approval status, and price-change alerts appear instantly inside the app without needing a paid backend; true “phone lock-screen” push (FCM) can be switched on later once the project is ready to move to the Blaze plan (see § 2.4).                |
 | Maps & location           | Google Maps SDK / Places API                                                                  | Address pin-drop, landmark selection, delivery-boy route view.                                                                                                                                                                                                          |
@@ -121,7 +121,7 @@ As requested, the project is designed to run entirely on Firebase's free “Spar
 |-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
 | Authentication        | Unlimited email/password & custom-token sign-ins, free                                                                                                                  | Yes — used for all 3 apps' login                                                                                                       |
 | Cloud Firestore       | 1 GiB stored data; ~50,000 reads, 20,000 writes, 20,000 deletes per day, free, every day                                                                                | Yes — comfortably covers hundreds of customers with daily deliveries; scales further by optimizing how often each screen re-reads data |
-| Firebase Storage      | 5 GB total storage, 1 GB/day download, free                                                                                                                             | Yes — profile photos and any delivery-proof photos                                                                                     |
+| Firebase Storage      | Not enabled — new Firebase projects need the Blaze plan for Cloud Storage                                                                                               | Deferred — profile photos and delivery-proof photos are on hold pending a future Blaze-plan decision (see § 4.8, § 6.3)                |
 | Firebase Hosting      | 10 GB storage, 360 MB/day transfer, free                                                                                                                                | Yes — if/when an Admin web panel is added                                                                                              |
 | Cloud Messaging (FCM) | Free, but sending messages requires a small server-side trigger                                                                                                         | Deferred — see note below                                                                                                              |
 | Cloud Functions       | Not available on Spark; requires upgrading to the Blaze (pay-as-you-go) plan and linking a billing method, even though Blaze still includes the same free monthly quota | Not used in Phase 1 (see approach below), so the project never needs to add a billing card                                             |
@@ -274,7 +274,7 @@ This is one of the most important business rules and is treated as a first-class
 
 ## 4.8 Delivery Boy Management
 
-- Create/edit/deactivate delivery boy accounts (name, mobile, password, photo, assigned societies/routes)
+- Create/edit/deactivate delivery boy accounts (name, mobile, password, assigned societies/routes, and a profile photo — photo upload is deferred: it needs Cloud Storage, which is not enabled on the Spark plan; on hold pending a future Blaze-plan decision, see § 2.4)
 
 - Assign or reassign customers to a delivery boy
 
@@ -295,9 +295,11 @@ This is one of the most important business rules and is treated as a first-class
 
 ## 4.10 Notifications from Admin
 
-- Push/SMS alert to customers when price changes, when a bill is generated, or when their change request is approved/rejected
+- In-app notification (via the notification centre described in § 2.4 and § 7) to customers when price changes, when a bill is generated, or when their change request is approved/rejected
 
-- Push alert to delivery boys when their route/list is updated or reassigned
+- In-app notification to delivery boys when their route/list is updated or reassigned
+
+- Real lock-screen push and SMS alerts are a future upgrade path, available only if/when the project moves to the Blaze plan (see § 2.4)
 
 # 5. Customer App – Detailed Requirements
 
@@ -361,7 +363,9 @@ This directly implements the requested rule that any change must ask whether it 
 
 ## 5.7 Notifications
 
-- Delivery completed today, price change alert, bill generated, request approved/rejected, payment received acknowledgement
+- Delivery completed today, price change alert, bill generated, request approved/rejected, payment received acknowledgement — all shown in the in-app notification centre (see § 2.4 and § 7)
+
+- Real lock-screen push and SMS delivery of these alerts is a future upgrade path, available only if/when the project moves to the Blaze plan
 
 # 6. Delivery Boy App – Detailed Requirements
 
@@ -387,7 +391,7 @@ This directly implements the requested rule that any change must ask whether it 
 
 - Optional remark/note field on every entry (delivered or not) — e.g. “left with neighbour,” “customer asked to increase quantity tomorrow”
 
-- Optional photo-proof of delivery (configurable, off by default)
+- Optional photo-proof of delivery (configurable, off by default) — deferred: it needs Cloud Storage, which is not enabled on the Spark plan; on hold pending a future Blaze-plan decision (see § 2.4)
 
 - All marks and remarks sync to the Admin app immediately (Firestore real-time listener), exactly as requested (“admin can see it immediately”)
 
