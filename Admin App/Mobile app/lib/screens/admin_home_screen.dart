@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ssd_shared/ssd_shared.dart';
 
 import 'create_login_screen.dart';
+import 'customer_list_screen.dart';
 
 /// Landing screen for a signed-in Admin. Placeholder until the Phase 1+
 /// dashboard (customers, deliveries, billing) is built.
@@ -47,6 +48,19 @@ class AdminHomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               FilledButton.icon(
+                icon: const Icon(Icons.people_alt_outlined),
+                label: const Text('Customers'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => CustomerListScreen(
+                      authService: authService,
+                      firestoreService: FirestoreService(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
                 icon: const Icon(Icons.person_add_alt_1),
                 label: const Text('Create login'),
                 onPressed: () => Navigator.of(context).push(
