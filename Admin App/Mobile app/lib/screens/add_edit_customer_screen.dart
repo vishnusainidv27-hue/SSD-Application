@@ -3,9 +3,11 @@ import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:ssd_shared/ssd_shared.dart';
 
 import '../widgets/credentials_share_dialog.dart';
+import 'map_picker_screen.dart';
 
 /// Admin form to onboard a new customer (login + profile + address + milk
 /// subscription) or, when [customer] is given, edit an existing one
@@ -164,6 +166,22 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
 
   void _autoFillAddress() {
     setState(() => _addressController.text = _computeFinalAddress());
+  }
+
+  Future<void> _pickLocation() async {
+    final current = (_latitude != null && _longitude != null)
+        ? LatLng(_latitude!, _longitude!)
+        : null;
+    final picked = await Navigator.of(context).push<LatLng>(
+      MaterialPageRoute(
+        builder: (_) => MapPickerScreen(initialPosition: current),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _latitude = picked.latitude;
+      _longitude = picked.longitude;
+    });
   }
 
   double? _quantityFor(MilkType type) {
@@ -567,6 +585,15 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
                           onPressed: enabled ? _autoFillAddress : null,
                         ),
                       ),
+                    ),
+                    _gap(),
+                    OutlinedButton.icon(
+                      onPressed: enabled ? _pickLocation : null,
+                      icon: const Icon(Icons.place_outlined),
+                      label: Text(_latitude == null
+                          ? 'Pick location on map'
+                          : 'Pin set: ${_latitude!.toStringAsFixed(5)}, '
+                              '${_longitude!.toStringAsFixed(5)} (change)'),
                     ),
                     _sectionTitle('Milk subscription'),
                     for (final type in MilkType.values) _milkSection(type),
