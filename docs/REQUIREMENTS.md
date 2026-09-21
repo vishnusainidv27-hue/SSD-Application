@@ -307,7 +307,9 @@ This is one of the most important business rules and is treated as a first-class
 
 - Login using mobile number + password (as generated/shared by Admin)
 
-- “Forgot password” flow sends a reset link/OTP via SMS, or the customer can request a reset from the Admin
+- “Forgot password”: there is no self-service reset. No real email inbox exists behind the mobile-mapped login address, and SMS-based reset requires the Blaze plan (see § 2.4). A customer or delivery boy who forgets their password must contact Admin, who resets it from the Admin app using AuthService.changeUserPassword (implemented in Phase 1; it runs on a temporary secondary Firebase instance, so Admin's own session is not disturbed). Note that this tool signs in as the user, so it needs the user's current password — it works while the password is still the one Admin set, but not if the user has since changed it themselves and forgotten the new one.
+
+- Real self-service password reset (e.g. via SMS OTP) is a future upgrade path, available only if/when the project moves to the Blaze plan
 
 - Force change-password on first login (recommended security practice)
 
