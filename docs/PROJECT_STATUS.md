@@ -172,8 +172,32 @@ What's built (all in `Admin App/Mobile app` + `shared/ssd_shared`):
 
 ## What's PENDING
 
-- **Next**: Phase 3 — Pricing engine & delivery calendar (in progress on
-  `feature/phase-3-pricing-engine`).
+- **Phase 3 — Pricing engine & delivery calendar: code-complete on branch
+  `feature/phase-3-pricing-engine`, awaiting the user's on-device test** (not
+  merged; do not mark done until confirmed). Built:
+  - `PriceModel` (typed `MilkType`, dates stored as UTC midnight so they are
+    timezone-safe) and `PricingService`: `setNewRate` (appends a new record and
+    closes the open one the day before; rejects a start date on/before the latest
+    record's start, so history is never rewritten), `rateEffectiveOn`, pure
+    `PricingService.rateFor(prices, date)` for Phase 7 bills, `watchPrices`.
+    Price doc id is `<milkType>_<yyyyMMdd>`.
+  - `PriceListScreen` (home → Prices): current rate per milk type, "New rate"
+    dialog (rate + effective-from date, warns on past dates), full history
+    table with changed-by / changed-on.
+  - `DeliveryExceptionModel` + `FirestoreService.watchExceptions/saveExceptions/
+    deleteException`; `DeliveryExceptionScreen` (customer list ⋮ → Delivery
+    calendar): multi-select dates, "No delivery" or "Change quantity" (per milk
+    type), list of upcoming changes with remove. Admin-created exceptions are
+    saved as `approved`. A skip is always all-milk-types; if a day has a skip
+    and a quantity change, the skip wins (Phase 5/6 must honour this).
+  - Tests: `shared/ssd_shared/test/pricing_service_test.dart` (incl. the §9
+    worked example) and `delivery_exceptions_test.dart`, using
+    `fake_cloud_firestore`.
+  - **Spec fix**: Requirements §9's worked example counted the skipped 20 Aug in
+    the 15–31 Aug total; corrected to 16 days / ₹1,040 / total ₹1,908.
+  - **Left open**: nothing applies the exceptions yet — the delivery list
+    (Phase 6) and bill (Phase 7) must read `deliveryExceptions`; the "frequency
+    other than daily" part of Requirements §4.2.4 is still not built.
 - Phase 4 — Customer App (login, delivery history, bill view): not started.
   Note: `Customer App/` has NOT had `flutter create` run yet — no
   android/ios folders exist there yet.

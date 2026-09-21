@@ -5,6 +5,7 @@ import '../utils/customer_filter.dart';
 import '../widgets/credentials_share_dialog.dart';
 import '../widgets/reset_password_dialog.dart';
 import 'add_edit_customer_screen.dart';
+import 'delivery_exception_screen.dart';
 
 /// Admin's customer master list (Requirements §4.3): live list with search
 /// (name / mobile / society / block / flat), filters (society, milk type,
@@ -27,7 +28,7 @@ class CustomerListScreen extends StatefulWidget {
   State<CustomerListScreen> createState() => _CustomerListScreenState();
 }
 
-enum _CustomerAction { edit, resetPassword, toggleActive }
+enum _CustomerAction { edit, calendar, resetPassword, toggleActive }
 
 class _CustomerListScreenState extends State<CustomerListScreen> {
   final _searchController = TextEditingController();
@@ -61,6 +62,18 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _openCalendar(CustomerModel customer) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => DeliveryExceptionScreen(
+          customer: customer,
+          authService: widget.authService,
+          firestoreService: widget.firestoreService,
+        ),
+      ),
+    );
   }
 
   Future<void> _resetPassword(CustomerModel customer) async {
@@ -202,6 +215,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
               switch (action) {
                 case _CustomerAction.edit:
                   _openAddEdit(c);
+                case _CustomerAction.calendar:
+                  _openCalendar(c);
                 case _CustomerAction.resetPassword:
                   _resetPassword(c);
                 case _CustomerAction.toggleActive:
@@ -211,6 +226,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
             itemBuilder: (_) => [
               const PopupMenuItem(
                   value: _CustomerAction.edit, child: Text('Edit')),
+              const PopupMenuItem(
+                  value: _CustomerAction.calendar,
+                  child: Text('Delivery calendar')),
               const PopupMenuItem(
                   value: _CustomerAction.resetPassword,
                   child: Text('Reset password')),
