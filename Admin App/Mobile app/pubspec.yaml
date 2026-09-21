@@ -16,6 +16,7 @@ dependencies:
   ssd_shared:
     path: ../../shared/ssd_shared
   share_plus: ^13.3.0
+  google_maps_flutter: ^2.18.1
 
 dev_dependencies:
   flutter_test:

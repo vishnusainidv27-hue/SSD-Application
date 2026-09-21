@@ -86,6 +86,12 @@ Companion docs in this same `docs/` folder:
   Android Studio → SDK Manager → SDK Tools → "Show Package Details" (the
   command-line `sdkmanager.bat` crashes with `0xC0000409` on this machine —
   always install SDK components through Android Studio's GUI instead).
+- **Google Maps API key** (Admin app map picker): put `MAPS_API_KEY=<key>` in
+  `Admin App/Mobile app/android/local.properties` (gitignored). `build.gradle.kts`
+  injects it into the manifest as a placeholder; builds work without it (blank
+  map). In Gradle Kotlin DSL files use `import java.util.Properties` — the
+  fully-qualified `java.util.…` fails because `java` resolves to the plugin
+  extension.
 - `.gitignore` needed `.claude/` and `firebase-debug.log` added.
 - Firebase project ID is `ssd-farm`, owned by the Google account
   `dairyfarmshreeshyam@gmail.com` — always `firebase login` with that account.
@@ -129,18 +135,45 @@ Companion docs in this same `docs/` folder:
 
 ---
 
+## What's DONE — Phase 2 (Admin customer onboarding) ✅ merged to `develop`
+
+Confirmed on a real phone (Redmi Note 9 Pro Max): Admin creates a customer, and
+that customer can log in to the Customer App (and Admin still logs in to the
+Admin app). **Not yet individually verified on-device**: the map pin picker
+(needs a Maps API key — see gotchas), editing a customer, deactivate/reactivate,
+and Reset Password. Code, analyze and unit tests are clean for all of them; treat
+any failure there as a bug to fix, not a new phase.
+
+What's built (all in `Admin App/Mobile app` + `shared/ssd_shared`):
+  - `CustomerModel` / `SubscriptionModel` `fromFirestore` + `toMap`;
+    `CustomerModel.buildFinalAddress`; `FirestoreService` customer CRUD
+    (`watchCustomers`, `createCustomer`, `updateCustomer`, `setCustomerActive`,
+    `getSubscriptions`). Customer doc id = the customer's Auth uid; subscriptions
+    use doc id `<uid>_<milkType>`; `customers.milkTypes` is denormalised for the
+    list's milk-type filter. `setCustomerActive` writes both `customers/{id}` and
+    `users/{id}` (the latter is what actually blocks login).
+  - `AddEditCustomerScreen` (create login + profile + address + map pin + milk
+    type/quantity, generated password, copy/share step; edit mode keeps the
+    mobile/login ID fixed), `MapPickerScreen` (tap/drag pin),
+    `CustomerListScreen` (search, filters, edit / deactivate / reactivate /
+    reset password), `reset_password_dialog.dart`, `utils/customer_filter.dart`.
+  - Unit tests in `test/customer_logic_test.dart`.
+  - **Left open / deferred**: the delivery-boy/route filter and default
+    delivery-boy assignment (needs delivery-boy management, Phase 6); delivery
+    frequency other than daily, time slot, and the advance date-exceptions
+    calendar (Phase 3 / later); customer *delete* (not built — deactivate
+    instead; a client can't delete another user's Auth account anyway); address
+    search on the map picker (would need Places API).
+  - **Needs the user**: a Google Maps API key (Google Cloud Console) — see the
+    setup note under "Environment gotchas". Without it the map shows blank.
+  - Reset Password asks Admin to type the customer's *current* password
+    (`changeUserPassword` signs in as them), so Admin must have kept the
+    password from the share step.
+
 ## What's PENDING
 
-- **Immediate decision needed before continuing**: build order —
-  **Phase 2** (Admin customer onboarding: society/block/floor/flat address,
-  map pin, milk subscription setup) **vs Phase 3** (pricing engine:
-  date-effective pricing, delivery exceptions calendar). Not yet decided —
-  ask the user which to do first before starting new feature work.
-- Phase 2 — Admin customer onboarding: not started. Scope also includes an Admin
-  "reset this user's password" action (calling `AuthService.changeUserPassword`),
-  built alongside the edit/deactivate/reactivate customer-list features already
-  planned in Requirements §4.3 — no Admin UI currently calls `changeUserPassword`.
-- Phase 3 — Pricing engine & delivery calendar: not started.
+- **Next**: Phase 3 — Pricing engine & delivery calendar (in progress on
+  `feature/phase-3-pricing-engine`).
 - Phase 4 — Customer App (login, delivery history, bill view): not started.
   Note: `Customer App/` has NOT had `flutter create` run yet — no
   android/ios folders exist there yet.
