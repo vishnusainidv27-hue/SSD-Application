@@ -164,7 +164,7 @@ Only the Admin can create a customer account. The Admin fills in a structured on
 
 - Customer's mobile number (used as the login ID)
 
-- System-generated or Admin-typed password (shown once to Admin to share with the customer; customer can change it later from the app)
+- System-generated or Admin-typed password (shown to Admin to share with the customer). Passwords are set and changed only by Admin; customers have no in-app option to change their own password
 
 ### 4.2.2 Profile Details
 
@@ -307,11 +307,9 @@ This is one of the most important business rules and is treated as a first-class
 
 - Login using mobile number + password (as generated/shared by Admin)
 
-- “Forgot password”: there is no self-service reset. No real email inbox exists behind the mobile-mapped login address, and SMS-based reset requires the Blaze plan (see § 2.4). A customer or delivery boy who forgets their password must contact Admin, who resets it from the Admin app using AuthService.changeUserPassword (implemented in Phase 1; it runs on a temporary secondary Firebase instance, so Admin's own session is not disturbed). Note that this tool signs in as the user, so it needs the user's current password — it works while the password is still the one Admin set, but not if the user has since changed it themselves and forgotten the new one.
+- “Forgot password”: there is no self-service reset. No real email inbox exists behind the mobile-mapped login address, and SMS-based reset requires the Blaze plan (see § 2.4). A customer or delivery boy who forgets their password must contact Admin, who resets it from the Admin app using AuthService.changeUserPassword (implemented in Phase 1; it runs on a temporary secondary Firebase instance, so Admin's own session is not disturbed). Because passwords are set and changed only by Admin (there is no self-service password change anywhere in the apps), Admin always knows the user's current password, so this reset always works.
 
-- Real self-service password reset (e.g. via SMS OTP) is a future upgrade path, available only if/when the project moves to the Blaze plan
-
-- Force change-password on first login (recommended security practice)
+- Real self-service password reset or change (e.g. via SMS OTP) is a future upgrade path, available only if/when the project moves to the Blaze plan
 
 ## 5.2 Home / Dashboard
 
@@ -361,7 +359,7 @@ This directly implements the requested rule that any change must ask whether it 
 
 - View/request edit of saved address (society, block, floor, flat, landmark, map pin) — edits to core address may also route through Admin approval to prevent delivery errors
 
-- Change password, update alternate contact number
+- Update alternate contact number. (Password changes are not available here — passwords are set and changed only by Admin.)
 
 ## 5.7 Notifications
 

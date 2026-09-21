@@ -33,6 +33,12 @@ Companion docs in this same `docs/` folder:
   - `active: false` on a user's Firestore doc disables their login — enforced
     BOTH client-side (`AuthService`/`LoginScreen`) AND server-side (Firestore
     rules' `isActiveUser()`), since client-side alone isn't real security.
+- **Passwords are Admin-only**: no self-service password change or reset exists
+  anywhere in the apps (no "forgot password", no "change my password", no forced
+  change on first login). A user who forgets their password asks Admin, who resets
+  it with `AuthService.changeUserPassword` — which always works because Admin is
+  the only one who ever sets or knows the current password. Self-service reset is
+  a future upgrade path only if the project moves to Blaze and adds SMS.
 - **Dev environment**: Windows for all Android development; a Mac is only
   needed later for the final iOS build/release (App Store/Xcode signing).
 - **IDE**: VS Code + Claude Code extension is now the ONLY place development
