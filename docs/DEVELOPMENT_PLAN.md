@@ -101,7 +101,7 @@ The repository already has main and develop branches created, with the initial f
 
 - Build the shared AuthService using Firebase Authentication's email/password sign-in, with mobile numbers mapped to a fixed internal address format (e.g. 9999999999@ssdfarm.app) purely so Firebase can store them — see the finalized approach below.
 
-- Build the Admin-side “Create Login” logic using a secondary, temporary FirebaseApp instance so creating a customer/delivery-boy account never signs the Admin out of their own session.
+- Build the Admin-side “Create Login” logic using a secondary, temporary FirebaseApp instance so creating a customer/delivery-boy account never signs the Admin out of their own session. The CreateLoginScreen includes a copy/share step after success (mobile number + password, with Copy and Share buttons and a pre-filled message) so Admin can send the credentials straight to the new user and keep a record — retrofitted after the initial build.
 
 - Build a shared login screen UI in ssd_shared (mobile number + password fields only), used by all three apps with role-based redirect.
 
@@ -163,7 +163,7 @@ flutter run
 
 - Edit / deactivate / reactivate a customer.
 
-- Add an Admin “Reset Password” action on the customer list/detail screen, calling AuthService.changeUserPassword — see Requirements §4.3 and PROJECT_STATUS.md.
+- Add an Admin “Reset Password” action on the customer list/detail screen, calling AuthService.changeUserPassword — see Requirements §4.3 and PROJECT_STATUS.md. After a successful reset it reuses the Phase 1 copy/share step (showCredentialsShareDialog) so the new password reaches the customer the same way.
 
 ## Commands
 
@@ -186,7 +186,7 @@ flutter pub get
 
 > **Claude Code prompt:** Build a CustomerListScreen with a search bar and filter chips (society, delivery boy, milk type, active/inactive), reading from FirestoreService, matching Requirements section 4.3.
 
-> **Claude Code prompt:** Add a 'Reset Password' option to the customer list/detail screen in the Admin app. It should prompt Admin for the customer's current password and a new password (AuthService.changeUserPassword needs both, since it signs in as the user), call AuthService.changeUserPassword with the customer's mobile number, and show a success or error message.
+> **Claude Code prompt:** Add a 'Reset Password' option to the customer list/detail screen in the Admin app. It should prompt Admin for the customer's current password and a new password (AuthService.changeUserPassword needs both, since it signs in as the user), call AuthService.changeUserPassword with the customer's mobile number, and show an error message on failure. On success, show the same copy/share dialog used after creating a login (showCredentialsShareDialog in Admin App/Mobile app/lib/widgets/credentials_share_dialog.dart) with the customer's mobile number and new password, so Admin can send it to the customer straight away.
 
 **Client-facing deliverable at end of phase:** Admin can add a real customer end-to-end (details + address + map pin + milk type/quantity), see them in a searchable/filterable list, and edit or deactivate them.
 

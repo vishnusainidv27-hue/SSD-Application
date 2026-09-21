@@ -47,6 +47,14 @@ Companion docs in this same `docs/` folder:
     sophistication and low incentive of this app's actual user base (milk
     delivery customers and delivery staff). Revisit only if the project ever
     moves to Blaze and adds a Cloud Function to enforce it properly.
+- **Password delivery**: after Admin creates any login, the app shows a
+  copy/share step (mobile + password, pre-filled share message) so Admin can
+  immediately send credentials to the new user and keep a durable record of what
+  was set. This also mitigates (but doesn't eliminate) the risk of Admin losing
+  track of a password needed for `AuthService.changeUserPassword` later. The
+  same step is reused after an Admin password reset (Phase 2). Implemented in
+  `Admin App/Mobile app/lib/widgets/credentials_share_dialog.dart` (uses
+  `share_plus`).
 - **Dev environment**: Windows for all Android development; a Mac is only
   needed later for the final iOS build/release (App Store/Xcode signing).
 - **IDE**: VS Code + Claude Code extension is now the ONLY place development
@@ -67,6 +75,11 @@ Companion docs in this same `docs/` folder:
     `$env:NODE_OPTIONS="--dns-result-order=ipv4first"` in the terminal first.
     (Worth making this a permanent User environment variable if it keeps
     coming up.)
+- **Kotlin "Could not close incremental caches" build failure** (seen with
+  `share_plus`): the project is on `E:` while the pub cache is on `C:`, and Kotlin
+  incremental compilation breaks across drives. Fixed by `kotlin.incremental=false`
+  in `Admin App/Mobile app/android/gradle.properties` — add the same line to the
+  `android/gradle.properties` of any new app folder (Customer, Delivery Boy).
 - PowerShell needed `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`
   to let `npm` run at all.
 - Android build required NDK version `28.2.13676358` installed manually via
@@ -105,8 +118,11 @@ Companion docs in this same `docs/` folder:
   - `Admin App/Mobile app/lib/screens/admin_home_screen.dart` — placeholder
     dashboard with Create Login + Log out
   - `Admin App/Mobile app/lib/screens/create_login_screen.dart` — working
-    tool: Admin creates Customer/DeliveryBoy/Admin logins from inside the app
-  - `Admin App/Mobile app/test/widget_test.dart` — smoke test
+    tool: Admin creates Customer/DeliveryBoy/Admin logins from inside the app;
+    on success it shows a copy/share dialog with the mobile + password
+    (retrofitted after the first live test)
+  - `Admin App/Mobile app/test/widget_test.dart` — smoke tests (Firebase-not-
+    configured fallback screen, share-message text)
 - **Confirmed working live**: Admin logs in → creates a test Customer login →
   logs out → logging in as that Customer correctly gets rejected with
   "This app is for Admin accounts only" (proves the role guard works).

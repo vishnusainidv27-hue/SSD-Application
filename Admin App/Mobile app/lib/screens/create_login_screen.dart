@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ssd_shared/ssd_shared.dart';
 
+import '../widgets/credentials_share_dialog.dart';
+
 /// Admin-only form to create a login (mobile number + password + role) for a
 /// customer, delivery boy or another admin. Uses [AuthService.createUserAccount],
 /// which leaves the Admin's own session untouched.
@@ -47,10 +49,12 @@ class _CreateLoginScreenState extends State<CreateLoginScreen> {
     });
 
     final name = _nameController.text.trim();
+    final mobile = AuthService.normalizeMobile(_mobileController.text.trim());
+    final password = _passwordController.text;
     try {
       await widget.authService.createUserAccount(
-        mobile: _mobileController.text.trim(),
-        password: _passwordController.text,
+        mobile: mobile,
+        password: password,
         name: name,
         role: _role,
       );
@@ -63,8 +67,14 @@ class _CreateLoginScreenState extends State<CreateLoginScreen> {
         _loading = false;
         _role = _roles.first;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login created for $name.')),
+      // The password is never stored, so this is Admin's one chance to send it
+      // to the user and keep a record in their own sent messages.
+      await showCredentialsShareDialog(
+        context,
+        title: 'Login created',
+        name: name,
+        mobile: mobile,
+        password: password,
       );
     } on FirebaseAuthException catch (e) {
       _fail(_messageForAuthError(e));

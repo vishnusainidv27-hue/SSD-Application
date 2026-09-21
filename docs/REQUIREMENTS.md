@@ -166,6 +166,8 @@ Only the Admin can create a customer account. The Admin fills in a structured on
 
 - System-generated or Admin-typed password (shown to Admin to share with the customer). Passwords are set and changed only by Admin; customers have no in-app option to change their own password
 
+- After the account is created, Admin is shown the mobile number and password with Copy and Share buttons and a pre-filled message (e.g. “Your SSD Farm app login — Mobile: …, Password: …. Download the app and sign in with these details.”), so the credentials can be sent to the customer immediately (WhatsApp/SMS/etc.) and Admin keeps a record of what was set. The same step is shown after an Admin password reset
+
 ### 4.2.2 Profile Details
 
 - Customer full name
