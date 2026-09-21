@@ -163,6 +163,8 @@ flutter run
 
 - Edit / deactivate / reactivate a customer.
 
+- Add an Admin “Reset Password” action on the customer list/detail screen, calling AuthService.changeUserPassword — see Requirements §4.3 and PROJECT_STATUS.md.
+
 ## Commands
 
 ```
@@ -183,6 +185,8 @@ flutter pub get
 > **Claude Code prompt:** Add a Google Map picker screen that lets the Admin drag a pin to select the customer's exact location, and return the latitude/longitude back to AddEditCustomerScreen.
 
 > **Claude Code prompt:** Build a CustomerListScreen with a search bar and filter chips (society, delivery boy, milk type, active/inactive), reading from FirestoreService, matching Requirements section 4.3.
+
+> **Claude Code prompt:** Add a 'Reset Password' option to the customer list/detail screen in the Admin app. It should prompt Admin for the customer's current password and a new password (AuthService.changeUserPassword needs both, since it signs in as the user), call AuthService.changeUserPassword with the customer's mobile number, and show a success or error message.
 
 **Client-facing deliverable at end of phase:** Admin can add a real customer end-to-end (details + address + map pin + milk type/quantity), see them in a searchable/filterable list, and edit or deactivate them.
 
