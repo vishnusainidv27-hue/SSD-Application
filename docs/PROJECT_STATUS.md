@@ -36,7 +36,7 @@ Companion docs in this same `docs/` folder:
 - **Dev environment**: Windows for all Android development; a Mac is only
   needed later for the final iOS build/release (App Store/Xcode signing).
 - **IDE**: VS Code + Claude Code extension is now the ONLY place development
-  happens.
+  happens — this chat is no longer part of the workflow.
 - **Git**: monorepo. Branches: `main` (approved releases) ← `develop`
   (integration) ← `feature/phase-n-...` (one per phase). Remote:
   `https://github.com/vishnusainidv27-hue/SSD-Application`.
@@ -51,6 +51,8 @@ Companion docs in this same `docs/` folder:
     `systemProp.java.net.preferIPv4Stack=true`
   - For Firebase CLI / flutterfire hangs: run
     `$env:NODE_OPTIONS="--dns-result-order=ipv4first"` in the terminal first.
+    (Worth making this a permanent User environment variable if it keeps
+    coming up.)
 - PowerShell needed `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`
   to let `npm` run at all.
 - Android build required NDK version `28.2.13676358` installed manually via
@@ -70,8 +72,8 @@ Companion docs in this same `docs/` folder:
 - Firebase project `ssd-farm` created (Spark plan); Authentication
   (Email/Password provider) and Firestore enabled; Storage intentionally
   skipped (see decisions above).
-- Firestore security rules deployed (actually `firebase deploy`ed, not just
-  written locally) with `isSignedIn()`, `role()`, `isActiveUser()`.
+- Firestore security rules deployed (not just written locally — actually
+  `firebase deploy`ed) with `isSignedIn()`, `role()`, `isActiveUser()`.
 - `flutterfire configure --project=ssd-farm` run for the Admin Mobile app —
   real `firebase_options.dart` generated; Android app
   (`com.ssdfarm.admin_mobile_app`) and iOS app (`com.ssdfarm.adminMobileApp`)
@@ -123,7 +125,15 @@ Companion docs in this same `docs/` folder:
 
 ## How to keep working entirely in Claude Code from here
 
-At the start of any new session, read this file first before doing anything
-else. At the end of each phase, update this file — move that phase from
-Pending to Done with a summary of what was built, and note anything still
-open. This keeps the file accurate without needing any other conversation.
+At the start of any new session, tell Claude Code:
+
+> "Read docs/PROJECT_STATUS.md, then continue development from where it says
+> we left off."
+
+At the end of each phase, tell Claude Code:
+
+> "Update docs/PROJECT_STATUS.md — move [phase] from Pending to Done with a
+> summary of what was built, and note anything still open."
+
+This keeps the file (and thus any future Claude Code session) accurate without
+needing to come back to any other conversation.
