@@ -135,12 +135,16 @@ Companion docs in this same `docs/` folder:
 
 ---
 
-## What's PENDING
+## What's DONE — Phase 2 (Admin customer onboarding) ✅ merged to `develop`
 
-- **Build order decided**: Phase 2 first, then Phase 3. **Phase 2 is code-complete
-  on branch `feature/phase-2-customer-onboarding` and awaiting the user's
-  on-device test** (not yet merged to `develop`; do not mark done until confirmed).
-  What's built (all in `Admin App/Mobile app` + `shared/ssd_shared`):
+Confirmed on a real phone (Redmi Note 9 Pro Max): Admin creates a customer, and
+that customer can log in to the Customer App (and Admin still logs in to the
+Admin app). **Not yet individually verified on-device**: the map pin picker
+(needs a Maps API key — see gotchas), editing a customer, deactivate/reactivate,
+and Reset Password. Code, analyze and unit tests are clean for all of them; treat
+any failure there as a bug to fix, not a new phase.
+
+What's built (all in `Admin App/Mobile app` + `shared/ssd_shared`):
   - `CustomerModel` / `SubscriptionModel` `fromFirestore` + `toMap`;
     `CustomerModel.buildFinalAddress`; `FirestoreService` customer CRUD
     (`watchCustomers`, `createCustomer`, `updateCustomer`, `setCustomerActive`,
@@ -165,7 +169,11 @@ Companion docs in this same `docs/` folder:
   - Reset Password asks Admin to type the customer's *current* password
     (`changeUserPassword` signs in as them), so Admin must have kept the
     password from the share step.
-- Phase 3 — Pricing engine & delivery calendar: not started.
+
+## What's PENDING
+
+- **Next**: Phase 3 — Pricing engine & delivery calendar (in progress on
+  `feature/phase-3-pricing-engine`).
 - Phase 4 — Customer App (login, delivery history, bill view): not started.
   Note: `Customer App/` has NOT had `flutter create` run yet — no
   android/ios folders exist there yet.
