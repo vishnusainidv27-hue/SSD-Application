@@ -63,6 +63,7 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
 
   double? _latitude;
   double? _longitude;
+  late String? _assignedDeliveryBoyId = widget.customer?.assignedDeliveryBoyId;
 
   bool _loading = false;
   bool _loadingExisting = false;
@@ -260,7 +261,7 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
         finalAddress: _addressController.text.trim(),
         latitude: _latitude,
         longitude: _longitude,
-        assignedDeliveryBoyId: widget.customer?.assignedDeliveryBoyId,
+        assignedDeliveryBoyId: _assignedDeliveryBoyId,
         milkTypes: [for (final s in subscriptions) s.milkType],
         active: widget.customer?.active ?? true,
       );
@@ -594,6 +595,40 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
                           ? 'Pick location on map'
                           : 'Pin set: ${_latitude!.toStringAsFixed(5)}, '
                               '${_longitude!.toStringAsFixed(5)} (change)'),
+                    ),
+                    _sectionTitle('Delivery'),
+                    StreamBuilder<List<DeliveryBoyModel>>(
+                      stream: widget.firestoreService.watchDeliveryBoys(),
+                      builder: (context, snapshot) {
+                        final boys = snapshot.data ?? const <DeliveryBoyModel>[];
+                        // Keep a currently-assigned boy selectable even if
+                        // they were deactivated after assignment.
+                        final options = [
+                          for (final b in boys) b.id,
+                          if (_assignedDeliveryBoyId != null &&
+                              !boys.any((b) => b.id == _assignedDeliveryBoyId))
+                            _assignedDeliveryBoyId!,
+                        ];
+                        return DropdownButtonFormField<String?>(
+                          initialValue: options.contains(_assignedDeliveryBoyId)
+                              ? _assignedDeliveryBoyId
+                              : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Assigned delivery boy (optional)',
+                            prefixIcon: Icon(Icons.two_wheeler_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            const DropdownMenuItem<String?>(
+                                value: null, child: Text('Unassigned')),
+                            for (final b in boys)
+                              DropdownMenuItem(value: b.id, child: Text(b.name)),
+                          ],
+                          onChanged: enabled
+                              ? (v) => setState(() => _assignedDeliveryBoyId = v)
+                              : null,
+                        );
+                      },
                     ),
                     _sectionTitle('Milk subscription'),
                     for (final type in MilkType.values) _milkSection(type),

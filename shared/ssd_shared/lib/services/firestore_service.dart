@@ -295,14 +295,28 @@ class FirestoreService {
   /// this needs no composite index.
   Stream<List<DeliveryModel>> watchDeliveriesForDate(
       String deliveryBoyId, DateTime date) {
-    return _db
-        .collection(_deliveries)
-        .where('deliveryBoyId', isEqualTo: deliveryBoyId)
-        .where('date', isEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(date)))
+    return _deliveriesForDateQuery(deliveryBoyId, date)
         .snapshots()
         .map((snap) =>
             [for (final doc in snap.docs) DeliveryModel.fromFirestore(doc)]);
   }
+
+  /// One-shot version of [watchDeliveriesForDate], for the delivery boy's
+  /// end-of-day summary and short history — those look at several past days
+  /// at once, where a live listener per day isn't worth keeping open.
+  Future<List<DeliveryModel>> getDeliveriesForDate(
+      String deliveryBoyId, DateTime date) async {
+    final snap = await _deliveriesForDateQuery(deliveryBoyId, date).get();
+    return [for (final doc in snap.docs) DeliveryModel.fromFirestore(doc)];
+  }
+
+  Query<Map<String, dynamic>> _deliveriesForDateQuery(
+          String deliveryBoyId, DateTime date) =>
+      _db
+          .collection(_deliveries)
+          .where('deliveryBoyId', isEqualTo: deliveryBoyId)
+          .where('date',
+              isEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(date)));
 
   /// Live list of every customer's `deliveries` rows for one [date] — Admin's
   /// tracking dashboard (Requirements §4.4); society/boy/milk-type/status
