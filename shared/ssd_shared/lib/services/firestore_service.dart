@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/bill_model.dart';
 import '../models/customer_model.dart';
 import '../models/delivery_exception_model.dart';
+import '../models/delivery_model.dart';
 import '../models/subscription_model.dart';
 
 /// Generic Firestore read/write helpers shared by all apps.
@@ -17,6 +19,8 @@ class FirestoreService {
   static const String _subscriptions = 'subscriptions';
   static const String _users = 'users';
   static const String _exceptions = 'deliveryExceptions';
+  static const String _deliveries = 'deliveries';
+  static const String _bills = 'bills';
 
   final FirebaseFirestore? _firestoreOverride;
 
@@ -47,6 +51,17 @@ class FirestoreService {
         .where('customerId', isEqualTo: customerId)
         .get();
     return [for (final doc in snap.docs) SubscriptionModel.fromFirestore(doc)];
+  }
+
+  /// Live version of [getSubscriptions], for the Customer App's own dashboard
+  /// (so a plan change Admin makes shows up without a manual refresh).
+  Stream<List<SubscriptionModel>> watchSubscriptions(String customerId) {
+    return _db
+        .collection(_subscriptions)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snap) =>
+            [for (final doc in snap.docs) SubscriptionModel.fromFirestore(doc)]);
   }
 
   /// Writes the customer profile (id = the customer's Auth uid, from
@@ -130,6 +145,42 @@ class FirestoreService {
 
   Future<void> deleteException(String id) =>
       _db.collection(_exceptions).doc(id).delete();
+
+  // ------------------------------------------------------------- deliveries
+
+  /// Live list of one customer's delivery records, soonest first. Filtered by
+  /// customer only (matches the Firestore rule) and sorted here; date-range,
+  /// milk-type and status filters are applied client-side by the caller (see
+  /// `filterDeliveries` in the Customer App), same pattern as the customer
+  /// list's search/filters.
+  Stream<List<DeliveryModel>> watchDeliveries(String customerId) {
+    return _db
+        .collection(_deliveries)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snap) {
+      final list = [
+        for (final doc in snap.docs) DeliveryModel.fromFirestore(doc),
+      ];
+      list.sort((a, b) => a.date.compareTo(b.date));
+      return list;
+    });
+  }
+
+  // ------------------------------------------------------------------ bills
+
+  /// Live list of one customer's generated bills, newest first.
+  Stream<List<BillModel>> watchBills(String customerId) {
+    return _db
+        .collection(_bills)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snap) {
+      final list = [for (final doc in snap.docs) BillModel.fromFirestore(doc)];
+      list.sort((a, b) => b.periodTo.compareTo(a.periodTo));
+      return list;
+    });
+  }
 
   /// Deterministic id (`<customerId>_<milkType>`) so re-saving a subscription
   /// overwrites rather than duplicates it.
