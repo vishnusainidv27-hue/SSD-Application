@@ -21,6 +21,7 @@ class FirestoreService {
   static const String _exceptions = 'deliveryExceptions';
   static const String _deliveries = 'deliveries';
   static const String _bills = 'bills';
+  static const String _notifications = 'notifications';
 
   final FirebaseFirestore? _firestoreOverride;
 
@@ -145,6 +146,82 @@ class FirestoreService {
 
   Future<void> deleteException(String id) =>
       _db.collection(_exceptions).doc(id).delete();
+
+  /// Customer-submitted change/skip request (Requirements §5.5): always
+  /// starts `pending`, under an auto-generated id so a resubmission (e.g.
+  /// after a rejection) keeps its own row in the customer's history instead
+  /// of overwriting the earlier one. Only Admin can move it to
+  /// approved/rejected — see [respondToRequest].
+  Future<void> submitRequest(DeliveryExceptionModel request) {
+    assert(request.status == ExceptionStatus.pending);
+    return _db.collection(_exceptions).add({
+      ...request.toMap(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Live queue of every customer's pending requests, oldest first — Admin's
+  /// Approval Queue (Requirements §4.7).
+  Stream<List<DeliveryExceptionModel>> watchPendingRequests() {
+    return _db
+        .collection(_exceptions)
+        .where('status', isEqualTo: ExceptionStatus.pending.name)
+        .snapshots()
+        .map((snap) {
+      final list = [
+        for (final doc in snap.docs) DeliveryExceptionModel.fromFirestore(doc),
+      ];
+      list.sort((a, b) {
+        final aCreated = a.createdAt;
+        final bCreated = b.createdAt;
+        if (aCreated == null || bCreated == null) return 0;
+        return aCreated.compareTo(bCreated);
+      });
+      return list;
+    });
+  }
+
+  /// Admin approves or rejects a pending request, and drops a notification
+  /// for the customer either way (Requirements §4.7: "notify the customer").
+  /// Once approved, [plannedDeliveriesForDate] picks it up automatically —
+  /// nothing else needs to change, since exceptions are already the
+  /// date-effective source of truth the dashboard/history read live.
+  ///
+  /// The notification is written now so Phase 8's notification centre has
+  /// data to show as soon as it's built; there is no in-app place to read it
+  /// yet.
+  Future<void> respondToRequest({
+    required DeliveryExceptionModel request,
+    required bool approve,
+    required String adminUid,
+    String? note,
+  }) {
+    assert(request.status == ExceptionStatus.pending);
+    final batch = _db.batch();
+    batch.update(_db.collection(_exceptions).doc(request.id), {
+      'status':
+          (approve ? ExceptionStatus.approved : ExceptionStatus.rejected).name,
+      'approvedBy': adminUid,
+      'note': note,
+    });
+    final what = request.type == ExceptionType.skip
+        ? 'your request to skip delivery on ${_ymd(request.date)}'
+        : 'your quantity-change request for ${_ymd(request.date)}';
+    batch.set(_db.collection(_notifications).doc(), {
+      'targetUserRef': request.customerId,
+      'type': approve ? 'requestApproved' : 'requestRejected',
+      'message': approve
+          ? 'Admin approved $what.'
+          : 'Admin rejected $what.${note == null || note.isEmpty ? '' : ' Note: $note'}',
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    return batch.commit();
+  }
+
+  static String _ymd(DateTime d) => '${d.year}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   // ------------------------------------------------------------- deliveries
 
