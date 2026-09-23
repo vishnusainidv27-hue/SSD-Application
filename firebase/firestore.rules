@@ -28,6 +28,46 @@ service cloud.firestore {
       allow write: if isSignedIn() && role() == 'admin' && isActiveUser();
     }
 
+    function isAdmin() {
+      return role() == 'admin' && isActiveUser();
+    }
+
+    // A customer may read their own records (doc id = their uid for
+    // `customers`, or a `customerId` field on the document for everything
+    // else); Admin may read/write all of them. Writes to these collections
+    // stay Admin-only for now — Phase 5 adds customer-submitted (pending)
+    // deliveryExceptions, and Phase 6 adds delivery-boy-scoped writes to
+    // `deliveries`.
+    match /customers/{customerId} {
+      allow read: if isSignedIn() && isActiveUser() &&
+          (request.auth.uid == customerId || isAdmin());
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /subscriptions/{docId} {
+      allow read: if isSignedIn() && isActiveUser() &&
+          (resource.data.customerId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /deliveryExceptions/{docId} {
+      allow read: if isSignedIn() && isActiveUser() &&
+          (resource.data.customerId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /deliveries/{docId} {
+      allow read: if isSignedIn() && isActiveUser() &&
+          (resource.data.customerId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /bills/{docId} {
+      allow read: if isSignedIn() && isActiveUser() &&
+          (resource.data.customerId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if isSignedIn() && role() == 'admin' && isActiveUser();
     }
