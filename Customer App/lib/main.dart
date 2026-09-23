@@ -96,6 +96,7 @@ class _AuthGateState extends State<_AuthGate> {
   static const String _customerRole = 'customer';
 
   final _authService = AuthService();
+  final _firestoreService = FirestoreService();
 
   bool _checking = true;
   bool _isCustomer = false;
@@ -149,7 +150,21 @@ class _AuthGateState extends State<_AuthGate> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_isCustomer) {
-      return CustomerHomeScreen(onSignOut: _handleSignOut);
+      final customerId = _authService.currentUserId;
+      if (customerId == null) {
+        // Shouldn't happen (role came from a signed-in check), but fall back
+        // to login rather than crash if the session dropped in between.
+        return LoginScreen(
+          authService: _authService,
+          onLoginSuccess: _handleLoginSuccess,
+          title: 'SSD Farm',
+        );
+      }
+      return CustomerHomeScreen(
+        customerId: customerId,
+        firestoreService: _firestoreService,
+        onSignOut: _handleSignOut,
+      );
     }
     return LoginScreen(
       authService: _authService,
