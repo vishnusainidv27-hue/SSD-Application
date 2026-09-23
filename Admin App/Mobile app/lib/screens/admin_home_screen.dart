@@ -58,6 +58,7 @@ class AdminHomeScreen extends StatelessWidget {
                     builder: (_) => CustomerListScreen(
                       authService: authService,
                       firestoreService: FirestoreService(),
+                      pricingService: PricingService(),
                     ),
                   ),
                 ),
