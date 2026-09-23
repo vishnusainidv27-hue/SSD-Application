@@ -102,6 +102,12 @@ service cloud.firestore {
       allow write: if isSignedIn() && isAdmin();
     }
 
+    match /notifications/{docId} {
+      allow read, update: if isSignedIn() && isActiveUser() &&
+          resource.data.targetUserRef == request.auth.uid;
+      allow create, delete: if isSignedIn() && isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if isSignedIn() && role() == 'admin' && isActiveUser();
     }
