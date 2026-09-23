@@ -53,7 +53,15 @@ service cloud.firestore {
     match /deliveryExceptions/{docId} {
       allow read: if isSignedIn() && isActiveUser() &&
           (resource.data.customerId == request.auth.uid || isAdmin());
-      allow write: if isSignedIn() && isAdmin();
+      // A customer may create their own request (Requirements §5.5), but
+      // only as `pending` and only for themselves — they can never approve
+      // their own request or edit/delete an existing one (Admin's Approval
+      // Queue owns that, via update/delete).
+      allow create: if isSignedIn() && isActiveUser() &&
+          (isAdmin() ||
+              (request.resource.data.customerId == request.auth.uid &&
+                  request.resource.data.status == 'pending'));
+      allow update, delete: if isSignedIn() && isAdmin();
     }
 
     match /deliveries/{docId} {
