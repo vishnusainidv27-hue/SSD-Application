@@ -67,6 +67,13 @@ class AuthService {
     return doc.data();
   }
 
+  /// The signed-in user's uid, or null when nobody is signed in.
+  String? get currentUserId => _auth.currentUser?.uid;
+
+  /// The signed-in user's `name` from `users/{uid}` (empty if unavailable).
+  Future<String> currentUserName() async =>
+      (await _currentUserData())?['name'] as String? ?? '';
+
   /// Reads `role` from `users/{uid}` for the signed-in user. Returns null when
   /// nobody is signed in, the profile document / role field is missing, or the
   /// account is deactivated (`active` is explicitly false). Use

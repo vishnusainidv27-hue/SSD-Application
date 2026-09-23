@@ -97,6 +97,22 @@ Companion docs in this same `docs/` folder:
   `dairyfarmshreeshyam@gmail.com` — always `firebase login` with that account.
 - `flutterfire` and `firebase` CLI executables live in
   `C:\Users\admin\AppData\Local\Pub\Cache\bin` — already added to PATH.
+- **An app folder's scaffold (android/ios) only exists on the branch it was
+  committed on.** `flutter create`'s output (AndroidManifest.xml, MainActivity,
+  build.gradle.kts, …) is ordinary tracked content — if it's committed on one
+  feature branch and you `git checkout` a different branch that never merged
+  it, git correctly removes those files from the working tree (this is normal
+  branch-switch behaviour, not data loss; the commit is safe). It looked like
+  the Customer App's scaffold had vanished after finishing Phase 2/3 work on
+  other branches — it hadn't; `git checkout` back to the branch that has it
+  restores it instantly. Merge a phase's app-scaffold commit to `develop`
+  promptly (or keep working on its own branch) to avoid this surprise.
+- **On this machine, the Windows USB/adb tether to the phone drops
+  `flutter run` sessions unpredictably** (`Lost connection to device`),
+  sometimes within a minute, sometimes after an Android "FullBackup_native"
+  snapshot. The app itself keeps running fine on the phone; only the debug log
+  tether drops. Just re-run `flutter run -d <device-id>`, or ask the user to
+  open the already-installed app directly instead of waiting on the tether.
 
 ---
 
@@ -135,12 +151,16 @@ Companion docs in this same `docs/` folder:
 
 ---
 
-## What's PENDING
+## What's DONE — Phase 2 (Admin customer onboarding) ✅ merged to `develop`
 
-- **Build order decided**: Phase 2 first, then Phase 3. **Phase 2 is code-complete
-  on branch `feature/phase-2-customer-onboarding` and awaiting the user's
-  on-device test** (not yet merged to `develop`; do not mark done until confirmed).
-  What's built (all in `Admin App/Mobile app` + `shared/ssd_shared`):
+Confirmed on a real phone (Redmi Note 9 Pro Max): Admin creates a customer, and
+that customer can log in to the Customer App (and Admin still logs in to the
+Admin app). **Not yet individually verified on-device**: the map pin picker
+(needs a Maps API key — see gotchas), editing a customer, deactivate/reactivate,
+and Reset Password. Code, analyze and unit tests are clean for all of them; treat
+any failure there as a bug to fix, not a new phase.
+
+What's built (all in `Admin App/Mobile app` + `shared/ssd_shared`):
   - `CustomerModel` / `SubscriptionModel` `fromFirestore` + `toMap`;
     `CustomerModel.buildFinalAddress`; `FirestoreService` customer CRUD
     (`watchCustomers`, `createCustomer`, `updateCustomer`, `setCustomerActive`,
@@ -165,16 +185,51 @@ Companion docs in this same `docs/` folder:
   - Reset Password asks Admin to type the customer's *current* password
     (`changeUserPassword` signs in as them), so Admin must have kept the
     password from the share step.
-- Phase 3 — Pricing engine & delivery calendar: not started.
-- Phase 4 — Customer App (login, delivery history, bill view): shell only so far,
-  on branch `feature/phase-4-customer-history-billing`. `flutter create` has been
-  run, the app is registered in Firebase (`ssd-farm`; Android
-  `com.ssdfarm.customer_app`, iOS `com.ssdfarm.customerApp`), and it has a
-  customer-only login gate + placeholder home screen. Login verified on a real
-  phone. Dashboard, history and bill screens (and Firestore rules letting a
-  customer read their own data) are not built yet.
-  `android/app/google-services.json` is gitignored — regenerate with
+
+## What's DONE — Phase 3 (Pricing engine & delivery calendar) ✅ merged to `develop`
+
+Confirmed on a real phone: setting a new price via the Prices screen and the
+per-customer Delivery calendar (skip / change-quantity dates) both work.
+
+- `PriceModel` (typed `MilkType`, dates stored as UTC midnight so they are
+  timezone-safe) and `PricingService`: `setNewRate` (appends a new record and
+  closes the open one the day before; rejects a start date on/before the latest
+  record's start, so history is never rewritten), `rateEffectiveOn`, pure
+  `PricingService.rateFor(prices, date)` for Phase 7 bills, `watchPrices`.
+  Price doc id is `<milkType>_<yyyyMMdd>`.
+- `PriceListScreen` (home → Prices): current rate per milk type, "New rate"
+  dialog (rate + effective-from date, warns on past dates), full history
+  table with changed-by / changed-on.
+- `DeliveryExceptionModel` + `FirestoreService.watchExceptions/saveExceptions/
+  deleteException`; `DeliveryExceptionScreen` (customer list ⋮ → Delivery
+  calendar): multi-select dates, "No delivery" or "Change quantity" (per milk
+  type), list of upcoming changes with remove. Admin-created exceptions are
+  saved as `approved`. A skip is always all-milk-types; if a day has a skip
+  and a quantity change, the skip wins (Phase 5/6 must honour this).
+- Tests: `shared/ssd_shared/test/pricing_service_test.dart` (incl. the §9
+  worked example) and `delivery_exceptions_test.dart`, using
+  `fake_cloud_firestore`.
+- **Spec fix**: Requirements §9's worked example counted the skipped 20 Aug in
+  the 15–31 Aug total; corrected to 16 days / ₹1,040 / total ₹1,908.
+- **Left open**: nothing applies the exceptions yet — the delivery list
+  (Phase 6) and bill (Phase 7) must read `deliveryExceptions`; the "frequency
+  other than daily" part of Requirements §4.2.4 is still not built.
+
+## What's PENDING
+
+- **Next: Phase 4 — Customer App.** In progress on branch
+  `feature/phase-4-customer-history-billing`. So far: `flutter create` run,
+  registered in Firebase (`ssd-farm`; Android `com.ssdfarm.customer_app`, iOS
+  `com.ssdfarm.customerApp`), customer-only login gate + placeholder home
+  screen — **login confirmed working on a real phone**. Dashboard (next
+  delivery/outstanding), delivery history and bill view are not built yet.
+  `android/app/google-services.json` is gitignored; regenerate with
   `flutterfire configure --project=ssd-farm` after a fresh clone.
+  **Note**: the current Firestore rules only let Admin read `customers`,
+  `subscriptions`, `deliveryExceptions`, `deliveries` and `bills` — a signed-in
+  customer reading their own records will need matching rule changes
+  (`resource.data.customerId == request.auth.uid`) deployed before those
+  screens can show real data.
 - Phase 5 — Customer request/approval workflow: not started.
 - Phase 6 — Delivery Boy App (daily delivery workflow): not started.
   Note: `Delivery Boy App/` also has NOT had `flutter create` run yet.

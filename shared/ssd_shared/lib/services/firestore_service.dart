@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/customer_model.dart';
+import '../models/delivery_exception_model.dart';
 import '../models/subscription_model.dart';
 
 /// Generic Firestore read/write helpers shared by all apps.
@@ -15,6 +16,7 @@ class FirestoreService {
   static const String _customers = 'customers';
   static const String _subscriptions = 'subscriptions';
   static const String _users = 'users';
+  static const String _exceptions = 'deliveryExceptions';
 
   final FirebaseFirestore? _firestoreOverride;
 
@@ -94,6 +96,40 @@ class FirestoreService {
     batch.update(_db.collection(_users).doc(id), {'active': active});
     return batch.commit();
   }
+
+  // ------------------------------------------------------ delivery exceptions
+
+  /// Live list of one customer's delivery exceptions, soonest first. Filtered
+  /// by customer only and sorted here, so no composite index is needed.
+  Stream<List<DeliveryExceptionModel>> watchExceptions(String customerId) {
+    return _db
+        .collection(_exceptions)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snap) {
+      final list = [
+        for (final doc in snap.docs) DeliveryExceptionModel.fromFirestore(doc),
+      ];
+      list.sort((a, b) => a.date.compareTo(b.date));
+      return list;
+    });
+  }
+
+  /// Saves exceptions in one batch. Ids are deterministic, so saving the same
+  /// customer + date + milk type + kind again overwrites the earlier one.
+  Future<void> saveExceptions(List<DeliveryExceptionModel> exceptions) {
+    final batch = _db.batch();
+    for (final e in exceptions) {
+      batch.set(_db.collection(_exceptions).doc(e.id), {
+        ...e.toMap(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+    return batch.commit();
+  }
+
+  Future<void> deleteException(String id) =>
+      _db.collection(_exceptions).doc(id).delete();
 
   /// Deterministic id (`<customerId>_<milkType>`) so re-saving a subscription
   /// overwrites rather than duplicates it.
