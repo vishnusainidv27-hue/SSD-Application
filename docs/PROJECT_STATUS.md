@@ -215,22 +215,45 @@ per-customer Delivery calendar (skip / change-quantity dates) both work.
   (Phase 6) and bill (Phase 7) must read `deliveryExceptions`; the "frequency
   other than daily" part of Requirements §4.2.4 is still not built.
 
-## What's PENDING
+## What's DONE — Phase 4 (Customer App: login, history & bill view) ✅ merged to `develop`
 
-- **Next: Phase 4 — Customer App.** In progress on branch
-  `feature/phase-4-customer-history-billing`. So far: `flutter create` run,
-  registered in Firebase (`ssd-farm`; Android `com.ssdfarm.customer_app`, iOS
-  `com.ssdfarm.customerApp`), customer-only login gate + placeholder home
-  screen — **login confirmed working on a real phone**. Dashboard (next
-  delivery/outstanding), delivery history and bill view are not built yet.
+Confirmed on a real phone: the dashboard's Today/Tomorrow card shows the
+signed-in customer's actual milk type + quantity from their subscription.
+History and Bill View correctly show empty states (no `deliveries`/`bills`
+documents exist yet — that's Phase 6/7's job to create).
+
+- `flutter create` run, registered in Firebase (`ssd-farm`; Android
+  `com.ssdfarm.customer_app`, iOS `com.ssdfarm.customerApp`).
   `android/app/google-services.json` is gitignored; regenerate with
   `flutterfire configure --project=ssd-farm` after a fresh clone.
-  **Note**: the current Firestore rules only let Admin read `customers`,
-  `subscriptions`, `deliveryExceptions`, `deliveries` and `bills` — a signed-in
-  customer reading their own records will need matching rule changes
-  (`resource.data.customerId == request.auth.uid`) deployed before those
-  screens can show real data.
-- Phase 5 — Customer request/approval workflow: not started.
+- **Firestore rules deployed** so a signed-in customer can read their own
+  `customers`, `subscriptions`, `deliveryExceptions`, `deliveries` and `bills`
+  documents (`resource.data.customerId == request.auth.uid`, or doc id ==
+  uid for `customers`); Admin keeps full access. Writes to all of these stay
+  Admin-only for now (Phase 5 adds customer-submitted pending
+  `deliveryExceptions`; Phase 6 adds delivery-boy-scoped `deliveries` writes).
+- `DeliveryModel`/`BillModel` `fromFirestore`/`toMap` (previously stubs) +
+  `FirestoreService.watchSubscriptions/watchDeliveries/watchBills`.
+- `plannedDeliveriesForDate` (shared, pure, Firestore-free): given a
+  customer's subscriptions + exceptions, computes what's actually scheduled
+  for a given date — this is what makes the dashboard's Today/Tomorrow real
+  today, without needing Phase 6. Reused as-is once Phase 6 generates the
+  delivery boy's daily list.
+- `CustomerHomeScreen` (Today/Tomorrow + outstanding-amount cards, links to
+  History/Bill), `DeliveryHistoryScreen` (date range / milk type / status
+  filters — `utils/delivery_filter.dart`), `BillViewScreen` (month picker,
+  day-wise breakup + running total from `deliveries`, plus previous
+  dues/paid/net-payable if Admin has generated an actual `bills` doc for that
+  period).
+- **Left open**: "Change quantity" / "Skip a day" quick actions (Phase 5 —
+  needs the approval queue first); History/Bill only show real data once
+  Phase 6 (deliveries) and Phase 7 (bills) exist.
+- Tests: `shared/ssd_shared/test/delivery_planner_test.dart` and
+  `Customer App/test/delivery_filter_test.dart`.
+
+## What's PENDING
+
+- **Next: Phase 5 — Customer request/approval workflow.**
 - Phase 6 — Delivery Boy App (daily delivery workflow): not started.
   Note: `Delivery Boy App/` also has NOT had `flutter create` run yet.
 - Phase 7 — Billing engine, payments, reports: not started.
