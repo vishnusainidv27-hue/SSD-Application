@@ -63,6 +63,7 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
 
   double? _latitude;
   double? _longitude;
+  late String? _assignedDeliveryBoyId = widget.customer?.assignedDeliveryBoyId;
 
   bool _loading = false;
   bool _loadingExisting = false;
@@ -260,7 +261,7 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
         finalAddress: _addressController.text.trim(),
         latitude: _latitude,
         longitude: _longitude,
-        assignedDeliveryBoyId: widget.customer?.assignedDeliveryBoyId,
+        assignedDeliveryBoyId: _assignedDeliveryBoyId,
         milkTypes: [for (final s in subscriptions) s.milkType],
         active: widget.customer?.active ?? true,
       );
@@ -594,6 +595,46 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
                           ? 'Pick location on map'
                           : 'Pin set: ${_latitude!.toStringAsFixed(5)}, '
                               '${_longitude!.toStringAsFixed(5)} (change)'),
+                    ),
+                    _sectionTitle('Delivery'),
+                    StreamBuilder<List<DeliveryBoyModel>>(
+                      stream: widget.firestoreService.watchDeliveryBoys(),
+                      builder: (context, snapshot) {
+                        final boys = snapshot.data ?? const <DeliveryBoyModel>[];
+                        // Firestore rules mean this list starts empty for one
+                        // frame while the stream connects — if the currently
+                        // assigned boy isn't in [boys] yet (still loading, or
+                        // genuinely deactivated/removed since assignment),
+                        // add a placeholder item for their id so `initialValue`
+                        // always matches exactly one item. Omitting this
+                        // crashes DropdownButtonFormField on that first frame.
+                        final assignedMissing = _assignedDeliveryBoyId != null &&
+                            !boys.any((b) => b.id == _assignedDeliveryBoyId);
+                        return DropdownButtonFormField<String?>(
+                          initialValue: _assignedDeliveryBoyId,
+                          decoration: const InputDecoration(
+                            labelText: 'Assigned delivery boy (optional)',
+                            prefixIcon: Icon(Icons.two_wheeler_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            const DropdownMenuItem<String?>(
+                                value: null, child: Text('Unassigned')),
+                            for (final b in boys)
+                              DropdownMenuItem(value: b.id, child: Text(b.name)),
+                            if (assignedMissing)
+                              DropdownMenuItem(
+                                value: _assignedDeliveryBoyId,
+                                child: Text(snapshot.hasData
+                                    ? 'Unknown delivery boy'
+                                    : 'Loading…'),
+                              ),
+                          ],
+                          onChanged: enabled
+                              ? (v) => setState(() => _assignedDeliveryBoyId = v)
+                              : null,
+                        );
+                      },
                     ),
                     _sectionTitle('Milk subscription'),
                     for (final type in MilkType.values) _milkSection(type),

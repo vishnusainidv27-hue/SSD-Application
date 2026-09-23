@@ -4,6 +4,7 @@ import 'package:ssd_shared/ssd_shared.dart';
 import 'approval_queue_screen.dart';
 import 'create_login_screen.dart';
 import 'customer_list_screen.dart';
+import 'delivery_tracking_screen.dart';
 import 'price_list_screen.dart';
 
 /// Landing screen for a signed-in Admin. Placeholder until the Phase 1+
@@ -70,6 +71,22 @@ class AdminHomeScreen extends StatelessWidget {
                     builder: (_) => PriceListScreen(
                       authService: authService,
                       pricingService: PricingService(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                icon: const Icon(Icons.local_shipping_outlined),
+                label: const Text('Delivery tracking'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => DeliveryTrackingScreen(
+                      firestoreService: FirestoreService(),
+                      planningService: DeliveryPlanningService(
+                        firestoreService: FirestoreService(),
+                        pricingService: PricingService(),
+                      ),
                     ),
                   ),
                 ),

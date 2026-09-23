@@ -39,8 +39,14 @@ service cloud.firestore {
     // deliveryExceptions, and Phase 6 adds delivery-boy-scoped writes to
     // `deliveries`.
     match /customers/{customerId} {
+      // The delivery boy branch only ever needs single-document get()s (the
+      // Delivery Boy App looks up a customer by the id on a `deliveries` row
+      // it already has), never a broad list query, so it's safe even though
+      // it depends on this document's own data.
       allow read: if isSignedIn() && isActiveUser() &&
-          (request.auth.uid == customerId || isAdmin());
+          (request.auth.uid == customerId || isAdmin() ||
+              (role() == 'deliveryBoy' &&
+                  resource.data.assignedDeliveryBoyId == request.auth.uid));
       allow write: if isSignedIn() && isAdmin();
     }
 
@@ -66,7 +72,21 @@ service cloud.firestore {
 
     match /deliveries/{docId} {
       allow read: if isSignedIn() && isActiveUser() &&
-          (resource.data.customerId == request.auth.uid || isAdmin());
+          (isAdmin() ||
+              resource.data.customerId == request.auth.uid ||
+              (role() == 'deliveryBoy' &&
+                  resource.data.deliveryBoyId == request.auth.uid));
+      // A delivery boy may create/update a row only under their own
+      // deliveryBoyId — Admin's DeliveryPlanningService is what actually
+      // decides which boy a customer's rows belong to (by copying
+      // customers.assignedDeliveryBoyId onto the row at generation time), so
+      // this doesn't let a delivery boy claim someone else's customer; it
+      // only stops them writing under a co-worker's id. Accepted, matching
+      // this project's existing low-stakes risk tolerance (see the password
+      // self-service note above).
+      allow create, update: if isSignedIn() && isActiveUser() &&
+          role() == 'deliveryBoy' &&
+          request.resource.data.deliveryBoyId == request.auth.uid;
       allow write: if isSignedIn() && isAdmin();
     }
 

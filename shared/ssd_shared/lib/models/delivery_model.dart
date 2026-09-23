@@ -4,9 +4,11 @@ import 'price_model.dart';
 import 'subscription_model.dart';
 
 /// Represents one day's delivery record (Firestore collection: `deliveries`).
-/// One document per customer + date + milk type. Built in Phase 6 – Delivery
-/// Boy daily workflow; `fromFirestore`/`toMap` land in Phase 4 so the Customer
-/// App's history/bill screens can already read them once they exist.
+/// One document per customer + date + milk type. `fromFirestore`/`toMap`
+/// landed in Phase 4 so the Customer App's history/bill screens could already
+/// read them; Phase 6 (Delivery Boy daily workflow) is what actually creates
+/// and marks them — see `DeliveryPlanningService.generateDeliveriesForDate`
+/// and `FirestoreService.markDelivery`.
 enum DeliveryStatus { pending, delivered, notDelivered, skipped }
 
 class DeliveryModel {
@@ -20,6 +22,10 @@ class DeliveryModel {
   final String? remark;
   final String? deliveryBoyId;
 
+  /// When the delivery boy actually marked this entry (delivered/not
+  /// delivered) — null while still `pending`/`skipped`.
+  final DateTime? markedAt;
+
   DeliveryModel({
     required this.customerId,
     required DateTime date,
@@ -29,6 +35,7 @@ class DeliveryModel {
     required this.status,
     this.remark,
     this.deliveryBoyId,
+    this.markedAt,
   })  : date = PriceModel.dateOnly(date),
         id = idFor(customerId, date, milkType);
 
@@ -62,10 +69,15 @@ class DeliveryModel {
       ),
       remark: data['remark'] as String?,
       deliveryBoyId: data['deliveryBoyId'] as String?,
+      markedAt: (data['markedAt'] as Timestamp?)?.toDate(),
     );
   }
 
-  Map<String, dynamic> toMap() => {
+  /// Firestore representation. Pass [markStatus] when actually marking a
+  /// delivery so `markedAt` is set to the server time; omit it (as
+  /// [DeliveryPlanningService] does when first generating the day's
+  /// placeholder rows) to leave `markedAt` untouched.
+  Map<String, dynamic> toMap({bool markStatus = false}) => {
         'customerId': customerId,
         'date': PriceModel.dayToTimestamp(date),
         'milkType': milkType.name,
@@ -74,5 +86,6 @@ class DeliveryModel {
         'status': status.name,
         'remark': remark,
         'deliveryBoyId': deliveryBoyId,
+        if (markStatus) 'markedAt': FieldValue.serverTimestamp(),
       };
 }

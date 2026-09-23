@@ -293,11 +293,65 @@ immediately reflected on the dashboard.
   onward request still only varies quantity/skip — frequency (daily only) is
   still not configurable (Requirements §4.2.4, noted since Phase 2).
 
+## What's DONE — Phase 6 (Delivery Boy App: daily delivery workflow) ✅ merged to `develop`
+
+Confirmed end to end on a real phone: Admin assigns a delivery boy to a
+customer, opens Delivery Tracking (which generates that day's `deliveries`
+rows), the delivery boy sees the entry on their own app and marks it, and it
+updates live on Admin's tracking screen.
+
+- **Key design decision**: there's no Cloud Functions/cron on Spark, so
+  nothing generates a day's `deliveries` rows automatically at midnight.
+  **Admin generates them** by opening the Delivery Tracking screen (or
+  tapping Refresh) — it calls `DeliveryPlanningService.generateDeliveriesForDate`,
+  which turns each assigned, active customer's subscription + approved
+  exceptions (Phases 3/5) into pending/skipped rows at that day's price.
+  Idempotent — never overwrites an already-marked row. **Operational
+  consequence: Admin must open the app at least once a day (or tap Refresh)
+  for delivery boys to see that day's list.**
+- **Bug found and fixed during testing**: the customer form's "Assigned
+  delivery boy" dropdown crashed when reopening any customer that already had
+  one assigned, because `DropdownButtonFormField`'s `initialValue` had no
+  matching item during the one frame before the delivery-boys list finished
+  loading. Fixed by always including a placeholder item for the
+  currently-assigned id when it isn't in the loaded list yet (covers both
+  "still loading" and "genuinely deactivated" cases).
+- `DeliveryBoyModel` (typed view over `users` where `role == 'deliveryBoy'`;
+  no separate `deliveryBoys` collection yet). `DeliveryModel` gained
+  `markedAt`. `FirestoreService`: `watchDeliveryBoys`, `markDelivery`,
+  `watchDeliveriesForDate`/`getDeliveriesForDate` (delivery boy's own day),
+  `watchAllDeliveriesForDate` (Admin, all customers).
+- **Firestore rules deployed**: a delivery boy may read customers assigned to
+  them (single-document `get()`s only, never a broad list query) and their
+  own delivery rows, and may create/update a delivery row only under their
+  own `deliveryBoyId`. **Accepted risk, deliberately not hardened further**:
+  the rule doesn't verify server-side that the customer on that row is
+  actually assigned to that boy — the apps never do this anyway, so it only
+  stops a boy writing under a co-worker's id, not a targeted attack. Same
+  risk tolerance as the existing password-security note.
+- Admin App: "Assigned delivery boy" dropdown on Add/Edit Customer;
+  `DeliveryTrackingScreen` (today's — or any day's — deliveries across all
+  customers, live planned-vs-delivered totals, status/milk-type/boy/society
+  filters).
+- Delivery Boy App (new): `flutter create` run, registered in Firebase
+  (`ssd-farm`; Android `com.ssdfarm.delivery_boy_app`, iOS
+  `com.ssdfarm.deliveryBoyApp`). Daily list grouped Society → Block with
+  search; Delivered / Not Delivered (reason required, optional remark);
+  **Navigate** opens the customer's saved pin in Google Maps externally (no
+  embedded map / second Maps API key needed); summary screen (today's
+  completed/missed/skipped + litres by type, last 7 days). Offline: Firestore's
+  default disk persistence, set explicitly in `main.dart` for clarity.
+  `android/app/google-services.json` is gitignored; regenerate with
+  `flutterfire configure --project=ssd-farm` after a fresh clone.
+- Tests: `delivery_planning_service_test.dart` (6, shared) and
+  `Delivery Boy App/test/delivery_list_entry_test.dart` (6, grouping/filter).
+- **Left open**: delivery-boy performance reporting (Requirements §4.8/§4.9)
+  is Phase 7 Reports scope, not built here — you can only see today's/a day's
+  totals per boy via Delivery Tracking's filter, not a proper report.
+
 ## What's PENDING
 
-- **Next: Phase 6 — Delivery Boy App (daily delivery workflow).**
-  Note: `Delivery Boy App/` has NOT had `flutter create` run yet.
-- Phase 7 — Billing engine, payments, reports: not started.
+- **Next: Phase 7 — Billing engine, payments & reports.**
 - Phase 8 — Admin Web panel, notifications, store release prep: not started.
   Note: `Admin App/Web/` also has NOT had `flutter create` run yet.
 - iOS has only been REGISTERED in Firebase, never actually built or run —
