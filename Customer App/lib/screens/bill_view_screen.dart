@@ -29,6 +29,11 @@ final DateFormat _dayFormat = DateFormat('EEE dd');
 final DateFormat _monthFormat = DateFormat('MMMM yyyy');
 
 String _milkLabel(MilkType t) => t == MilkType.cow ? 'Cow' : 'Buffalo';
+String _modeLabel(PaymentMode m) => switch (m) {
+      PaymentMode.cash => 'Cash',
+      PaymentMode.upi => 'UPI',
+      PaymentMode.bank => 'Bank transfer',
+    };
 
 class _BillViewScreenState extends State<BillViewScreen> {
   late final Stream<List<DeliveryModel>> _deliveries =
@@ -145,6 +150,37 @@ class _BillViewScreenState extends State<BillViewScreen> {
                       ),
                     ),
                   ),
+                  if (bill != null) ...[
+                    const SizedBox(height: 16),
+                    Text('Payment history', style: theme.textTheme.titleMedium),
+                    StreamBuilder<List<PaymentModel>>(
+                      stream: widget.firestoreService.watchPayments(widget.customerId),
+                      builder: (context, paySnap) {
+                        final payments = [
+                          for (final p in paySnap.data ?? const <PaymentModel>[])
+                            if (p.billId == bill.id) p,
+                        ];
+                        if (payments.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Text('No payments recorded for this bill yet.'),
+                          );
+                        }
+                        return Column(
+                          children: [
+                            for (final p in payments)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.receipt_outlined),
+                                title: Text('₹${_amountFormat.format(p.amount)} '
+                                    '· ${_modeLabel(p.mode)}'),
+                                subtitle: Text(_dayFormat.format(p.date)),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Text('Day-wise breakup', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
