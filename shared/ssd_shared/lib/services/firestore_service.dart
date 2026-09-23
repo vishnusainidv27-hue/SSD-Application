@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/bill_model.dart';
 import '../models/customer_model.dart';
+import '../models/delivery_boy_model.dart';
 import '../models/delivery_exception_model.dart';
 import '../models/delivery_model.dart';
+import '../models/price_model.dart';
 import '../models/subscription_model.dart';
 
 /// Generic Firestore read/write helpers shared by all apps.
@@ -22,6 +24,7 @@ class FirestoreService {
   static const String _deliveries = 'deliveries';
   static const String _bills = 'bills';
   static const String _notifications = 'notifications';
+  static const String _deliveryBoyRole = 'deliveryBoy';
 
   final FirebaseFirestore? _firestoreOverride;
 
@@ -43,6 +46,13 @@ class FirestoreService {
   Future<CustomerModel?> getCustomer(String id) async {
     final doc = await _db.collection(_customers).doc(id).get();
     return doc.exists ? CustomerModel.fromFirestore(doc) : null;
+  }
+
+  /// One-shot read of every customer — used by [DeliveryPlanningService],
+  /// which needs the whole list rather than a live view.
+  Future<List<CustomerModel>> getAllCustomers() async {
+    final snap = await _db.collection(_customers).get();
+    return [for (final doc in snap.docs) CustomerModel.fromFirestore(doc)];
   }
 
   /// Subscriptions for one customer (one doc per milk type).
@@ -257,6 +267,65 @@ class FirestoreService {
       list.sort((a, b) => b.periodTo.compareTo(a.periodTo));
       return list;
     });
+  }
+
+  // ----------------------------------------------------------- delivery boys
+
+  /// Live list of delivery boy accounts (`users` where `role == 'deliveryBoy'`),
+  /// ordered by name. There's no separate `deliveryBoys` collection yet —
+  /// see [DeliveryBoyModel].
+  Stream<List<DeliveryBoyModel>> watchDeliveryBoys() {
+    return _db
+        .collection(_users)
+        .where('role', isEqualTo: _deliveryBoyRole)
+        .snapshots()
+        .map((snap) {
+      final list = [
+        for (final doc in snap.docs) DeliveryBoyModel.fromFirestore(doc),
+      ];
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      return list;
+    });
+  }
+
+  // ------------------------------------------------ delivery boy daily list
+
+  /// Live list of [deliveryBoyId]'s `deliveries` rows for one [date] — the
+  /// Delivery Boy App's daily worklist. Both fields are exact matches, so
+  /// this needs no composite index.
+  Stream<List<DeliveryModel>> watchDeliveriesForDate(
+      String deliveryBoyId, DateTime date) {
+    return _db
+        .collection(_deliveries)
+        .where('deliveryBoyId', isEqualTo: deliveryBoyId)
+        .where('date', isEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(date)))
+        .snapshots()
+        .map((snap) =>
+            [for (final doc in snap.docs) DeliveryModel.fromFirestore(doc)]);
+  }
+
+  /// Live list of every customer's `deliveries` rows for one [date] — Admin's
+  /// tracking dashboard (Requirements §4.4); society/boy/milk-type/status
+  /// filters are applied client-side, same pattern as the customer list.
+  Stream<List<DeliveryModel>> watchAllDeliveriesForDate(DateTime date) {
+    return _db
+        .collection(_deliveries)
+        .where('date', isEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(date)))
+        .snapshots()
+        .map((snap) =>
+            [for (final doc in snap.docs) DeliveryModel.fromFirestore(doc)]);
+  }
+
+  /// Delivery boy marks one entry delivered/not-delivered (with an optional
+  /// remark — the mandatory "not delivered" reason is folded into it by the
+  /// caller). Sets `markedAt` to the server time.
+  Future<void> markDelivery(DeliveryModel delivery) {
+    assert(delivery.status == DeliveryStatus.delivered ||
+        delivery.status == DeliveryStatus.notDelivered);
+    return _db
+        .collection(_deliveries)
+        .doc(delivery.id)
+        .set(delivery.toMap(markStatus: true));
   }
 
   /// Deterministic id (`<customerId>_<milkType>`) so re-saving a subscription
