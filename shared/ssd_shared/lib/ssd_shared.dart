@@ -9,6 +9,7 @@ export 'models/delivery_boy_model.dart';
 export 'models/delivery_exception_model.dart';
 export 'models/delivery_model.dart';
 export 'models/price_model.dart';
+export 'models/payment_model.dart';
 export 'models/bill_model.dart';
 export 'screens/login_screen.dart';
 export 'services/auth_service.dart';

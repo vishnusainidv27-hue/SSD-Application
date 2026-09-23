@@ -349,10 +349,55 @@ updates live on Admin's tracking screen.
   is Phase 7 Reports scope, not built here — you can only see today's/a day's
   totals per boy via Delivery Tracking's filter, not a proper report.
 
+## What's DONE — Phase 7 (Billing engine, payments & reports) ✅ merged to `develop`
+
+Confirmed on a real phone: bill generation, recording a payment (with
+amountPaid preserved on refresh), payment history on both Admin and Customer
+App, and all six reports with CSV export.
+
+- `PricingService.generateBill(customerId, periodFrom, periodTo)`: sums every
+  `delivered`-status `deliveries` row in the period at the rate already
+  stamped on it (Phase 6), carries the previous period's `netPayable` forward
+  as `previousDue`. Deterministic id per customer + period, so re-generating
+  (e.g. after a late delivery mark) recomputes totals in place — but always
+  **preserves `amountPaid`**, so it can never silently wipe out a recorded
+  payment. Verified against the Requirements §9 worked example (₹1,908).
+- `PaymentModel` + `FirestoreService.recordPayment`: updates a bill's
+  `amountPaid`/`netPayable` via `FieldValue.increment`, so two payments
+  recorded around the same time can never race/overwrite each other.
+  `watchPayments`, `getAllDeliveriesInRange`/`getAllPaymentsInRange` (single
+  range-filter queries — deliberately avoid composite indexes; see the report
+  screens below), `getAllBills`, `getAllCustomers`.
+- **Firestore rules deployed**: a customer can read their own `payments`;
+  writes stay Admin-only.
+- Admin `BillGenerationScreen` (customer list ⋮ → Generate bill): month
+  picker, generate/refresh, day-wise breakup, Record Payment dialog (amount
+  capped at net payable, Cash/UPI/Bank), payment history.
+- Customer App's `BillViewScreen` now also shows payment history for the
+  displayed bill.
+- Six Admin reports (Requirements §4.9), all with filters and **CSV export**
+  (not PDF/Excel — see "Left open"): Delivery, Collection/payment,
+  Outstanding dues, Milk consumption/demand, Customer activity, Delivery boy
+  performance. Delivery/consumption/boy-performance share one
+  `getAllDeliveriesInRange` fetch, filtered/grouped client-side, to keep
+  reads cheap and avoid needing a composite index.
+- Tests: `shared/ssd_shared/test/billing_test.dart` (9 — generateBill,
+  recordPayment, range queries).
+- **Left open**:
+  - **PDF/Excel export** — Requirements §4.9 asks for CSV/PDF/Excel; only CSV
+    is built (opens directly in Excel/Sheets; adding a PDF-generation library
+    was cut for scope given this was already the largest phase). Same for
+    §4.6's "share the bill as PDF" — only the in-app view exists.
+  - Delivery-boy performance's "assigned" count is deliveries generated that
+    day (excludes skipped), not a true daily-route/roster concept — there's
+    no separate roster to compare against.
+  - No UI records an *online* payment gateway — Requirements §11 already
+    scoped that out of v1 (Admin/delivery boy record payments manually).
+
 ## What's PENDING
 
-- **Next: Phase 7 — Billing engine, payments & reports.**
-- Phase 8 — Admin Web panel, notifications, store release prep: not started.
+- **Next: Phase 8 — Admin Web panel, notifications, store release prep**
+  (the final planned phase).
   Note: `Admin App/Web/` also has NOT had `flutter create` run yet.
 - iOS has only been REGISTERED in Firebase, never actually built or run —
   needs a Mac, deferred until one is available.

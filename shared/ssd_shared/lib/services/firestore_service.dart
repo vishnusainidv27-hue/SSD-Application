@@ -5,6 +5,7 @@ import '../models/customer_model.dart';
 import '../models/delivery_boy_model.dart';
 import '../models/delivery_exception_model.dart';
 import '../models/delivery_model.dart';
+import '../models/payment_model.dart';
 import '../models/price_model.dart';
 import '../models/subscription_model.dart';
 
@@ -25,6 +26,7 @@ class FirestoreService {
   static const String _bills = 'bills';
   static const String _notifications = 'notifications';
   static const String _deliveryBoyRole = 'deliveryBoy';
+  static const String _payments = 'payments';
 
   final FirebaseFirestore? _firestoreOverride;
 
@@ -340,6 +342,89 @@ class FirestoreService {
         .collection(_deliveries)
         .doc(delivery.id)
         .set(delivery.toMap(markStatus: true));
+  }
+
+  // -------------------------------------------------------------- payments
+
+  /// Live payment history for one customer, newest first — Customer App's
+  /// bill view (Requirements §5.4) and Admin's bill screen both use this.
+  Stream<List<PaymentModel>> watchPayments(String customerId) {
+    return _db
+        .collection(_payments)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snap) {
+      final list = [for (final doc in snap.docs) PaymentModel.fromFirestore(doc)];
+      list.sort((a, b) => b.date.compareTo(a.date));
+      return list;
+    });
+  }
+
+  /// Records a payment against [bill] and updates its `amountPaid`/
+  /// `netPayable` atomically via [FieldValue.increment] — safe even if two
+  /// payments are recorded around the same time, since it never reads the
+  /// bill's current totals first. `recordedBy` is the Admin's uid.
+  Future<void> recordPayment({
+    required BillModel bill,
+    required double amount,
+    required PaymentMode mode,
+    required DateTime date,
+    required String recordedBy,
+  }) {
+    final batch = _db.batch();
+    batch.set(
+      _db.collection(_payments).doc(),
+      PaymentModel(
+        id: '',
+        customerId: bill.customerId,
+        billId: bill.id,
+        amount: amount,
+        mode: mode,
+        date: date,
+        recordedBy: recordedBy,
+      ).toMap(),
+    );
+    batch.update(_db.collection(_bills).doc(bill.id), {
+      'amountPaid': FieldValue.increment(amount),
+      'netPayable': FieldValue.increment(-amount),
+    });
+    return batch.commit();
+  }
+
+  // --------------------------------------------------- range reports (Admin)
+
+  /// Every delivery across all customers whose date falls in
+  /// [from]–[to] (inclusive) — a single range filter on one field, so no
+  /// composite index is needed. Powers the delivery / consumption /
+  /// delivery-boy-performance reports, each aggregating this client-side.
+  Future<List<DeliveryModel>> getAllDeliveriesInRange(
+      DateTime from, DateTime to) async {
+    final snap = await _db
+        .collection(_deliveries)
+        .where('date', isGreaterThanOrEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(from)))
+        .where('date', isLessThanOrEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(to)))
+        .get();
+    return [for (final doc in snap.docs) DeliveryModel.fromFirestore(doc)];
+  }
+
+  /// Every payment across all customers whose date falls in [from]–[to]
+  /// (inclusive) — powers the collection/payment report.
+  Future<List<PaymentModel>> getAllPaymentsInRange(
+      DateTime from, DateTime to) async {
+    final snap = await _db
+        .collection(_payments)
+        .where('date', isGreaterThanOrEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(from)))
+        .where('date', isLessThanOrEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(to)))
+        .get();
+    return [for (final doc in snap.docs) PaymentModel.fromFirestore(doc)];
+  }
+
+  /// Every bill across all customers — used by the Outstanding Dues report
+  /// to find each customer's latest bill. Bounded by the customer count, so a
+  /// one-shot full read is fine at this project's scale.
+  Future<List<BillModel>> getAllBills() async {
+    final snap = await _db.collection(_bills).get();
+    return [for (final doc in snap.docs) BillModel.fromFirestore(doc)];
   }
 
   /// Deterministic id (`<customerId>_<milkType>`) so re-saving a subscription

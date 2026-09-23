@@ -5,6 +5,7 @@ import '../utils/customer_filter.dart';
 import '../widgets/credentials_share_dialog.dart';
 import '../widgets/reset_password_dialog.dart';
 import 'add_edit_customer_screen.dart';
+import 'bill_generation_screen.dart';
 import 'delivery_exception_screen.dart';
 
 /// Admin's customer master list (Requirements §4.3): live list with search
@@ -19,16 +20,18 @@ class CustomerListScreen extends StatefulWidget {
     super.key,
     required this.authService,
     required this.firestoreService,
+    required this.pricingService,
   });
 
   final AuthService authService;
   final FirestoreService firestoreService;
+  final PricingService pricingService;
 
   @override
   State<CustomerListScreen> createState() => _CustomerListScreenState();
 }
 
-enum _CustomerAction { edit, calendar, resetPassword, toggleActive }
+enum _CustomerAction { edit, calendar, bill, resetPassword, toggleActive }
 
 class _CustomerListScreenState extends State<CustomerListScreen> {
   final _searchController = TextEditingController();
@@ -71,6 +74,19 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
           customer: customer,
           authService: widget.authService,
           firestoreService: widget.firestoreService,
+        ),
+      ),
+    );
+  }
+
+  void _openBill(CustomerModel customer) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => BillGenerationScreen(
+          customer: customer,
+          authService: widget.authService,
+          firestoreService: widget.firestoreService,
+          pricingService: widget.pricingService,
         ),
       ),
     );
@@ -217,6 +233,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   _openAddEdit(c);
                 case _CustomerAction.calendar:
                   _openCalendar(c);
+                case _CustomerAction.bill:
+                  _openBill(c);
                 case _CustomerAction.resetPassword:
                   _resetPassword(c);
                 case _CustomerAction.toggleActive:
@@ -229,6 +247,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
               const PopupMenuItem(
                   value: _CustomerAction.calendar,
                   child: Text('Delivery calendar')),
+              const PopupMenuItem(
+                  value: _CustomerAction.bill, child: Text('Generate bill')),
               const PopupMenuItem(
                   value: _CustomerAction.resetPassword,
                   child: Text('Reset password')),
