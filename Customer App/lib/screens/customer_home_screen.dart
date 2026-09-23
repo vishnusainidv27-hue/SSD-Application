@@ -4,14 +4,13 @@ import 'package:ssd_shared/ssd_shared.dart';
 
 import 'bill_view_screen.dart';
 import 'delivery_history_screen.dart';
+import 'requests_screen.dart';
 
 /// Dashboard for a signed-in Customer (Requirements §5.2): today's/tomorrow's
-/// scheduled delivery (computed from the subscription plus any Admin-set
-/// exception — Phase 3), current outstanding amount (from the latest
-/// Admin-generated bill, once one exists), and quick links to history/bill.
-///
-/// "Change quantity" / "Skip a day" aren't here yet — that's Phase 5's request
-/// flow, once there's an approval queue for Admin to act on.
+/// scheduled delivery (computed from the subscription plus any in-effect
+/// exception — Phase 3/5), current outstanding amount (from the latest
+/// Admin-generated bill, once one exists), and quick links to
+/// history/bill/requests.
 class CustomerHomeScreen extends StatelessWidget {
   const CustomerHomeScreen({
     super.key,
@@ -51,7 +50,20 @@ class CustomerHomeScreen extends StatelessWidget {
               customerId: customerId,
               firestoreService: firestoreService,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              icon: const Icon(Icons.edit_calendar_outlined),
+              label: const Text('Change quantity / skip a day'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => RequestsScreen(
+                    customerId: customerId,
+                    firestoreService: firestoreService,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(

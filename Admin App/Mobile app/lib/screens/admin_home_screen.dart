@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ssd_shared/ssd_shared.dart';
 
+import 'approval_queue_screen.dart';
 import 'create_login_screen.dart';
 import 'customer_list_screen.dart';
 import 'price_list_screen.dart';
@@ -69,6 +70,19 @@ class AdminHomeScreen extends StatelessWidget {
                     builder: (_) => PriceListScreen(
                       authService: authService,
                       pricingService: PricingService(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                icon: const Icon(Icons.fact_check_outlined),
+                label: const Text('Approval queue'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ApprovalQueueScreen(
+                      authService: authService,
+                      firestoreService: FirestoreService(),
                     ),
                   ),
                 ),
