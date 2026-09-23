@@ -447,10 +447,10 @@ To make the pricing rule concrete for development and testing:
 | **Date**       | **Milk Type** | **Qty (L)**          | **Rate/L Applied** | **Amount**                     |
 |----------------|---------------|----------------------|--------------------|--------------------------------|
 | 01–14 Aug 2026 | Cow           | 1.0 / day (14 days)  | ₹62                | ₹868.00                        |
-| 15–31 Aug 2026 | Cow           | 1.0 / day (17 days)  | ₹65                | ₹1,105.00                      |
-| 20 Aug 2026    | Cow           | 0 (customer skipped) | —                  | ₹0.00 (already excluded above) |
+| 15–31 Aug 2026 | Cow           | 1.0 / day (16 days, 20 Aug excluded) | ₹65                | ₹1,040.00                      |
+| 20 Aug 2026    | Cow           | 0 (customer skipped) | —                  | ₹0.00 (already excluded from the 16 days above) |
 
-*August bill total for this customer = ₹868.00 + ₹1,105.00 = ₹1,973.00, correctly split across the old and new price even though it is a single monthly bill, and correctly excluding the one day the customer skipped.*
+*August bill total for this customer = ₹868.00 + ₹1,040.00 = ₹1,908.00, correctly split across the old and new price even though it is a single monthly bill, and correctly excluding the one day the customer skipped.*
 
 # 10. Non-Functional Requirements
 

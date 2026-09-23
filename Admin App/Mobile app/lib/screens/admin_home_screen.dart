@@ -3,6 +3,7 @@ import 'package:ssd_shared/ssd_shared.dart';
 
 import 'create_login_screen.dart';
 import 'customer_list_screen.dart';
+import 'price_list_screen.dart';
 
 /// Landing screen for a signed-in Admin. Placeholder until the Phase 1+
 /// dashboard (customers, deliveries, billing) is built.
@@ -55,6 +56,19 @@ class AdminHomeScreen extends StatelessWidget {
                     builder: (_) => CustomerListScreen(
                       authService: authService,
                       firestoreService: FirestoreService(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                icon: const Icon(Icons.currency_rupee),
+                label: const Text('Prices'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => PriceListScreen(
+                      authService: authService,
+                      pricingService: PricingService(),
                     ),
                   ),
                 ),

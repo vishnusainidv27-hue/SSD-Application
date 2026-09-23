@@ -5,6 +5,7 @@ library ssd_shared;
 
 export 'models/customer_model.dart';
 export 'models/subscription_model.dart';
+export 'models/delivery_exception_model.dart';
 export 'models/delivery_model.dart';
 export 'models/price_model.dart';
 export 'models/bill_model.dart';
