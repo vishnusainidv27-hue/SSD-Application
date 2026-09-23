@@ -601,18 +601,17 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
                       stream: widget.firestoreService.watchDeliveryBoys(),
                       builder: (context, snapshot) {
                         final boys = snapshot.data ?? const <DeliveryBoyModel>[];
-                        // Keep a currently-assigned boy selectable even if
-                        // they were deactivated after assignment.
-                        final options = [
-                          for (final b in boys) b.id,
-                          if (_assignedDeliveryBoyId != null &&
-                              !boys.any((b) => b.id == _assignedDeliveryBoyId))
-                            _assignedDeliveryBoyId!,
-                        ];
+                        // Firestore rules mean this list starts empty for one
+                        // frame while the stream connects — if the currently
+                        // assigned boy isn't in [boys] yet (still loading, or
+                        // genuinely deactivated/removed since assignment),
+                        // add a placeholder item for their id so `initialValue`
+                        // always matches exactly one item. Omitting this
+                        // crashes DropdownButtonFormField on that first frame.
+                        final assignedMissing = _assignedDeliveryBoyId != null &&
+                            !boys.any((b) => b.id == _assignedDeliveryBoyId);
                         return DropdownButtonFormField<String?>(
-                          initialValue: options.contains(_assignedDeliveryBoyId)
-                              ? _assignedDeliveryBoyId
-                              : null,
+                          initialValue: _assignedDeliveryBoyId,
                           decoration: const InputDecoration(
                             labelText: 'Assigned delivery boy (optional)',
                             prefixIcon: Icon(Icons.two_wheeler_outlined),
@@ -623,6 +622,13 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
                                 value: null, child: Text('Unassigned')),
                             for (final b in boys)
                               DropdownMenuItem(value: b.id, child: Text(b.name)),
+                            if (assignedMissing)
+                              DropdownMenuItem(
+                                value: _assignedDeliveryBoyId,
+                                child: Text(snapshot.hasData
+                                    ? 'Unknown delivery boy'
+                                    : 'Loading…'),
+                              ),
                           ],
                           onChanged: enabled
                               ? (v) => setState(() => _assignedDeliveryBoyId = v)
