@@ -168,7 +168,7 @@ class PricingService {
       ..sort((a, b) => b.periodTo.compareTo(a.periodTo));
     final previousDue = priorBills.isEmpty ? 0.0 : priorBills.first.netPayable;
 
-    final id = _billIdFor(customerId, from, to);
+    final id = billIdFor(customerId, from, to);
     // Re-generating an existing bill must never erase a payment already
     // recorded against it.
     final existing = bills.where((b) => b.id == id).toList();
@@ -191,7 +191,10 @@ class PricingService {
     return bill;
   }
 
-  static String _billIdFor(String customerId, DateTime from, DateTime to) =>
+  /// The deterministic id [generateBill] uses for a customer + period, exposed
+  /// so callers can check whether a bill already exists before generating
+  /// (e.g. to decide whether to notify the customer only on first generation).
+  static String billIdFor(String customerId, DateTime from, DateTime to) =>
       '${customerId}_${_ymd(from)}_${_ymd(to)}';
 
   static String _ymd(DateTime d) => '${d.year}'

@@ -488,6 +488,15 @@ class FirestoreService {
     return [for (final doc in snap.docs) PaymentModel.fromFirestore(doc)];
   }
 
+  /// One bill by id, or null — used to tell a brand-new bill apart from a
+  /// refresh of one that already existed, so Admin generating/refreshing a
+  /// bill only notifies the customer the first time (see [notify] call
+  /// sites in the Admin app).
+  Future<BillModel?> getBill(String id) async {
+    final doc = await _db.collection(_bills).doc(id).get();
+    return doc.exists ? BillModel.fromFirestore(doc) : null;
+  }
+
   /// Every bill across all customers — used by the Outstanding Dues report
   /// to find each customer's latest bill. Bounded by the customer count, so a
   /// one-shot full read is fine at this project's scale.
