@@ -349,11 +349,11 @@ updates live on Admin's tracking screen.
   is Phase 7 Reports scope, not built here — you can only see today's/a day's
   totals per boy via Delivery Tracking's filter, not a proper report.
 
-## Phase 7 (Billing engine, payments & reports) — code-complete, awaiting test
+## What's DONE — Phase 7 (Billing engine, payments & reports) ✅ merged to `develop`
 
-**Code-complete on branch `feature/phase-7-billing-reports`, awaiting the
-user's on-device test** (not merged to `develop`; do not mark done until
-confirmed).
+Confirmed on a real phone: bill generation, recording a payment (with
+amountPaid preserved on refresh), payment history on both Admin and Customer
+App, and all six reports with CSV export.
 
 - `PricingService.generateBill(customerId, periodFrom, periodTo)`: sums every
   `delivered`-status `deliveries` row in the period at the rate already
@@ -396,9 +396,8 @@ confirmed).
 
 ## What's PENDING
 
-- **Phase 7 is code-complete and awaiting the user's on-device test** (see
-  above) — once confirmed, merge to `develop` and move to Phase 8.
-- Phase 8 — Admin Web panel, notifications, store release prep: not started.
+- **Next: Phase 8 — Admin Web panel, notifications, store release prep**
+  (the final planned phase).
   Note: `Admin App/Web/` also has NOT had `flutter create` run yet.
 - iOS has only been REGISTERED in Firebase, never actually built or run —
   needs a Mac, deferred until one is available.
