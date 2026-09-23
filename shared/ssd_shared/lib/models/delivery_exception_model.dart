@@ -14,11 +14,17 @@ enum ExceptionStatus { pending, approved, rejected }
 
 /// A date-specific change to a customer's normal delivery plan (Firestore
 /// collection: `deliveryExceptions`). Admin-created exceptions (Phase 3) are
-/// saved as `approved`; customer requests (Phase 5) start as `pending` and go
-/// through the approval queue. Requirements §4.2.4, §4.7, §5.5.
+/// saved as `approved` under a deterministic id (one per customer + date +
+/// milk type + kind, so setting it again edits in place). Customer requests
+/// (Phase 5) start as `pending` under an auto-generated id instead — a
+/// customer may legitimately submit the same date/type more than once (e.g.
+/// after a rejection), and each attempt must stay in their history rather
+/// than overwrite the last one. Requirements §4.2.4, §4.7, §5.5.
 ///
-/// A skip with a null [milkType] skips every milk type that day. If a day has
-/// both a skip-all and a quantity change, the skip wins.
+/// A skip with a null [milkType] skips every milk type that day and is
+/// always [ExceptionScope.single] (Requirements §5.5 only offers "skip this
+/// date"; the single/onward choice is for quantity changes only). If a day
+/// has both an in-effect skip-all and a quantity change, the skip wins.
 class DeliveryExceptionModel {
   final String id;
   final String customerId;
@@ -33,23 +39,28 @@ class DeliveryExceptionModel {
   final DateTime? createdAt;
 
   DeliveryExceptionModel({
+    String? id,
     required this.customerId,
     required DateTime date,
     required this.type,
     MilkType? milkType,
     this.requestedQty,
-    this.appliesFrom = ExceptionScope.single,
+    ExceptionScope appliesFrom = ExceptionScope.single,
     this.status = ExceptionStatus.approved,
     this.approvedBy,
     this.note,
     this.createdAt,
   })  : date = PriceModel.dateOnly(date),
         milkType = type == ExceptionType.skip ? null : milkType,
-        id = idFor(customerId, date,
-            type == ExceptionType.skip ? null : milkType, type);
+        appliesFrom =
+            type == ExceptionType.skip ? ExceptionScope.single : appliesFrom,
+        id = id ??
+            idFor(customerId, date,
+                type == ExceptionType.skip ? null : milkType, type);
 
-  /// Deterministic id: one exception per customer + date + milk type + kind,
-  /// so re-saving overwrites instead of duplicating.
+  /// Deterministic id used for Admin-direct exceptions: one per customer +
+  /// date + milk type + kind, so re-saving overwrites instead of duplicating.
+  /// Not used for customer-submitted requests — see the class doc.
   static String idFor(
       String customerId, DateTime date, MilkType? milkType, ExceptionType type) {
     final d = '${date.year}'
@@ -65,6 +76,7 @@ class DeliveryExceptionModel {
     final date = data['date'] as Timestamp?;
     final milk = data['milkType'] as String?;
     return DeliveryExceptionModel(
+      id: doc.id,
       customerId: data['customerId'] as String? ?? '',
       date: date == null ? DateTime.now() : PriceModel.dayFromTimestamp(date),
       type: ExceptionType.values.firstWhere(

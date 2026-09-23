@@ -146,21 +146,42 @@ class _DeliveryExceptionScreenState extends State<DeliveryExceptionScreen> {
       ? 'No delivery'
       : '${_milkLabel(e.milkType!)}: ${_qtyLabel(e.requestedQty ?? 0)}';
 
+  /// A customer request (Phase 5) can land in this same list before Admin has
+  /// acted on it — label it clearly so it's never mistaken for something
+  /// already in effect.
+  String? _statusSuffix(DeliveryExceptionModel e) => switch (e.status) {
+        ExceptionStatus.pending => ' — pending customer request, not yet '
+            'in effect (see Approval queue)',
+        ExceptionStatus.rejected => ' — rejected'
+            '${e.note == null || e.note!.isEmpty ? '' : ': ${e.note}'}',
+        ExceptionStatus.approved => null,
+      };
+
   Widget _marker(DateTime day) {
     final items = _forDay(day);
     if (items.isEmpty) return const SizedBox.shrink();
-    final skipped = items.any((e) => e.type == ExceptionType.skip);
+    final theme = Theme.of(context);
+    // Only an approved exception is actually in effect; a pending/rejected
+    // one (from a customer request) gets a neutral dot so it's never read as
+    // "this is what will happen."
+    final inEffect = [
+      for (final e in items)
+        if (e.status == ExceptionStatus.approved) e,
+    ];
+    final Color color;
+    if (inEffect.any((e) => e.type == ExceptionType.skip)) {
+      color = theme.colorScheme.error;
+    } else if (inEffect.isNotEmpty) {
+      color = theme.colorScheme.tertiary;
+    } else {
+      color = theme.colorScheme.outline;
+    }
     return Positioned(
       bottom: 4,
       child: Container(
         width: 7,
         height: 7,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: skipped
-              ? Theme.of(context).colorScheme.error
-              : Theme.of(context).colorScheme.tertiary,
-        ),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
       ),
     );
   }
@@ -207,7 +228,8 @@ class _DeliveryExceptionScreenState extends State<DeliveryExceptionScreen> {
                 child: Text(
                   _selected.isEmpty
                       ? 'Tap dates to select them. Red dot = no delivery, '
-                          'other dot = quantity change.'
+                          'other dot = quantity change, grey dot = pending '
+                          'customer request.'
                       : '${_selected.length} date${_selected.length == 1 ? '' : 's'} selected',
                   style: theme.textTheme.bodyMedium,
                 ),
@@ -270,7 +292,8 @@ class _DeliveryExceptionScreenState extends State<DeliveryExceptionScreen> {
                           : theme.colorScheme.tertiary,
                     ),
                     title: Text(_dateFormat.format(e.date)),
-                    subtitle: Text(_describe(e)),
+                    subtitle:
+                        Text('${_describe(e)}${_statusSuffix(e) ?? ''}'),
                     trailing: IconButton(
                       tooltip: 'Remove',
                       icon: const Icon(Icons.delete_outline),

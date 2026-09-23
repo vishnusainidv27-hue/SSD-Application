@@ -251,11 +251,52 @@ documents exist yet — that's Phase 6/7's job to create).
 - Tests: `shared/ssd_shared/test/delivery_planner_test.dart` and
   `Customer App/test/delivery_filter_test.dart`.
 
+## What's DONE — Phase 5 (Customer requests + Admin approval workflow) ✅ merged to `develop`
+
+Confirmed on a real phone end to end: customer submits a skip and a
+quantity-change request → both show as Pending (and don't affect the
+dashboard yet) → Admin approves one and rejects the other with a note → the
+customer sees Approved/Rejected + the note, and the approved skip is
+immediately reflected on the dashboard.
+
+- **Fixed a latent bug**: `DeliveryExceptionModel.fromFirestore` recomputed a
+  deterministic id instead of using the real Firestore doc id. Harmless while
+  every writer used matching deterministic ids (Phase 3), but would have
+  broken customer requests, which need auto-generated ids (see next point).
+- Customer-submitted requests use `FirestoreService.submitRequest` (Firestore
+  `.add()`, auto id) so a resubmission (e.g. after rejection) keeps its own
+  row rather than overwriting the earlier one — Admin-direct exceptions still
+  use the Phase 3 deterministic-id `saveExceptions` path unchanged.
+- `plannedDeliveriesForDate` rewritten: now only `approved` exceptions affect
+  the plan (pending/rejected are ignored — "the old/default quantity remains
+  in effect until approved"), and `onward`-scope exceptions apply from their
+  date forward until a later approved one supersedes them (same
+  date-effective pattern as pricing). A skip is always single-scope
+  (Requirements §5.5 has no "skip onward" option). On a same-day tie, skip
+  beats quantity-change.
+- `FirestoreService.watchPendingRequests`/`respondToRequest` (approve/reject
+  + optional note + writes a `notifications` doc — no UI reads it yet, that's
+  Phase 8's `NotificationCentreWidget`).
+- **Firestore rules deployed**: a customer may `create` their own
+  `deliveryExceptions` doc, but only as `status: pending` and only with their
+  own `customerId` — they can never self-approve or touch another doc.
+  `update`/`delete` stay Admin-only.
+- Customer App: `RequestsScreen` (date picker restricted to tomorrow+, Skip
+  vs Change Quantity, single/onward choice, own request history with status).
+- Admin App: `ApprovalQueueScreen` (all customers' pending requests,
+  Approve/Reject + note); `DeliveryExceptionScreen` now shows a grey dot +
+  "not yet in effect" label for a customer's pending/rejected request instead
+  of mixing it in with what's actually scheduled.
+- Tests: `delivery_planner_test.dart` (9, rewritten) and
+  `request_approval_test.dart` (6, new) in `shared/ssd_shared`.
+- **Left open**: no UI reads the `notifications` doc yet (Phase 8); an
+  onward request still only varies quantity/skip — frequency (daily only) is
+  still not configurable (Requirements §4.2.4, noted since Phase 2).
+
 ## What's PENDING
 
-- **Next: Phase 5 — Customer request/approval workflow.**
-- Phase 6 — Delivery Boy App (daily delivery workflow): not started.
-  Note: `Delivery Boy App/` also has NOT had `flutter create` run yet.
+- **Next: Phase 6 — Delivery Boy App (daily delivery workflow).**
+  Note: `Delivery Boy App/` has NOT had `flutter create` run yet.
 - Phase 7 — Billing engine, payments, reports: not started.
 - Phase 8 — Admin Web panel, notifications, store release prep: not started.
   Note: `Admin App/Web/` also has NOT had `flutter create` run yet.
