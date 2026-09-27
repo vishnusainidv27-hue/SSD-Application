@@ -401,12 +401,14 @@ App, and all six reports with CSV export.
   - No UI records an *online* payment gateway — Requirements §11 already
     scoped that out of v1 (Admin/delivery boy record payments manually).
 
-## Phase 8 (Admin Web, notifications, release prep) — code-complete, awaiting test
+## What's DONE — Phase 8 (Admin Web, notifications, release prep) ✅ merged to `develop` and `main` (v0.8.0)
 
-**Code-complete on branch `feature/phase-8-web-notifications-release`, awaiting
-the user's check** (not merged to `develop`; do not mark done until
-confirmed). This was the last planned development phase — see the
-release-readiness checklist below for what's left before a store submission.
+Confirmed by the user on real devices/browser: Admin Web panel, notification
+centre in all three apps, and — added partway through the phase once the
+user supplied it — the real logo as every app's icon/splash and the whole
+app's color theme. **This was the last of the 8 planned development
+phases** — see the release-readiness checklist below for what's left before
+a store submission (all of it requires the user, not further coding).
 
 - **Admin Web app** (`Admin App/Web/`, `flutter create --platforms=web` run,
   registered in Firebase as a Web app): reuses every existing Admin screen
@@ -470,6 +472,13 @@ release-readiness checklist below for what's left before a store submission.
 
 ## What's PENDING
 
+**All 8 phases of the original Development Plan are done.** What's left falls
+into two buckets: the release-readiness checklist immediately below (all
+user-only actions — nothing further to code), and optional Future
+Enhancements (Requirements §12) that were never scoped as phases and would
+need the user to pick one before any work starts on it — see the end of this
+section.
+
 - **Release-readiness checklist** — everything below needs the user, not
   Claude Code (Firebase Console/Play Console/App Store Connect access,
   physical publishing, and decisions with real, hard-to-reverse trade-offs):
@@ -502,6 +511,13 @@ release-readiness checklist below for what's left before a store submission.
 - iOS has only been REGISTERED in Firebase, never actually built or run —
   needs a Mac, deferred until one is available.
 - Storage / photo-upload features are on hold pending a Blaze-plan decision.
+- **Optional Future Enhancements** (Requirements §12 — none of these are
+  scoped or started; each would become its own `feature/phase-9-...`-style
+  branch only once the user picks one): online payment gateway with
+  auto-reconciliation, delivery-boy route optimization, multiple admin/staff
+  roles with granular permissions, a customer referral/loyalty program, an
+  inventory/procurement-planning module, WhatsApp-based notifications, and a
+  delivery-quality rating/feedback flow from customers.
 
 ---
 
