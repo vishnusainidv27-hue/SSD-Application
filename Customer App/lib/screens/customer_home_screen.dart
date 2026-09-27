@@ -29,6 +29,7 @@ class CustomerHomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('SSD Farm'),
         actions: [
+          NotificationCentre(userId: customerId, firestoreService: firestoreService),
           IconButton(
             tooltip: 'Log out',
             icon: const Icon(Icons.logout),

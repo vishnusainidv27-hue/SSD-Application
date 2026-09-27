@@ -20,6 +20,35 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/app_icon.png
+    - assets/icon/app_icon_foreground.png
+
+# SSD Farm (Shree Shyam Dairy Farm) logo, cropped to a square with the
+# brand's cream background (see docs/branding/logo_original.jpg and
+# docs/PROJECT_STATUS.md's Phase 8 entry). Re-run `dart run
+# flutter_launcher_icons` and `dart run flutter_native_splash:create` after
+# ever replacing assets/icon/*.png.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#FBF6E8"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+
+flutter_native_splash:
+  color: "#FBF6E8"
+  image: assets/icon/app_icon_foreground.png
+  color_dark: "#1F425B"
+  image_dark: assets/icon/app_icon_foreground.png
+  android_12:
+    image: assets/icon/app_icon_foreground.png
+    icon_background_color: "#FBF6E8"
+    image_dark: assets/icon/app_icon_foreground.png
+    icon_background_color_dark: "#1F425B"

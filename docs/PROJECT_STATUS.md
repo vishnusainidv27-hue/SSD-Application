@@ -62,6 +62,13 @@ Companion docs in this same `docs/` folder:
 - **Git**: monorepo. Branches: `main` (approved releases) ← `develop`
   (integration) ← `feature/phase-n-...` (one per phase). Remote:
   `https://github.com/vishnusainidv27-hue/SSD-Application`.
+- **Branding**: the business is "Shree Shyam Dairy Farm"; the logo (a circular
+  cream-badge crest with a cow/farm scene, navy ring and text, gold wheat
+  sheaves) is at `docs/branding/logo_original.jpg`, supplied by the user in
+  Phase 8. `AppTheme` (`shared/ssd_shared/lib/theme/app_theme.dart`) derives
+  the whole app color scheme from colors sampled off this logo — see Phase 8's
+  entry below for the exact hex values and how each app's icon was built from
+  it. Do not use any other color palette or logo without the user's say-so.
 
 ---
 
@@ -394,14 +401,123 @@ App, and all six reports with CSV export.
   - No UI records an *online* payment gateway — Requirements §11 already
     scoped that out of v1 (Admin/delivery boy record payments manually).
 
+## What's DONE — Phase 8 (Admin Web, notifications, release prep) ✅ merged to `develop` and `main` (v0.8.0)
+
+Confirmed by the user on real devices/browser: Admin Web panel, notification
+centre in all three apps, and — added partway through the phase once the
+user supplied it — the real logo as every app's icon/splash and the whole
+app's color theme. **This was the last of the 8 planned development
+phases** — see the release-readiness checklist below for what's left before
+a store submission (all of it requires the user, not further coding).
+
+- **Admin Web app** (`Admin App/Web/`, `flutter create --platforms=web` run,
+  registered in Firebase as a Web app): reuses every existing Admin screen
+  **unmodified** via a local path dependency on `admin_mobile_app` in its
+  `pubspec.yaml` — an ordinary Dart package dependency works the same
+  whether the target is nominally an "app" or a "package", so nothing had to
+  move into `shared/ssd_shared`. Only `main.dart` (same login/role-gate
+  pattern as the mobile app) and `AdminWebHomeScreen` (a `NavigationRail`
+  side-nav instead of the mobile home's button list, opening the same
+  screens) are new code. Verified it actually builds (`flutter build web`)
+  and runs (`flutter run -d chrome`) before treating the approach as safe.
+- **Notifications** (Requirements §2.4/§7 — no Cloud Functions, so this is
+  the substitute for real push): `NotificationModel` +
+  `FirestoreService.notify`/`notifyMany`/`watchNotifications`/
+  `markNotificationRead`; a shared `NotificationCentre` widget (bell icon +
+  unread badge + bottom sheet) wired into all three apps' app bars (Admin
+  Web's is in the nav rail). Write points: Phase 5's approve/reject (already
+  existed), **bill generated** (only on first generation for a period, not
+  on Refresh — checked via the new `PricingService.billIdFor` +
+  `FirestoreService.getBill`), **payment received**, **price changed**
+  (fanned out to every active customer subscribed to that milk type).
+- **Firestore rules deployed**: a user can read and mark-read their own
+  notifications; only Admin can create/delete them.
+- **Real branding — the SSD Farm (Shree Shyam Dairy Farm) logo**, supplied by
+  the user partway through Phase 8, replacing the placeholder milk-drop glyph
+  originally generated here:
+  - Original logo saved at `docs/branding/logo_original.jpg`; the square,
+    cream-padded crop used as the actual app icon source is
+    `docs/branding/logo_icon_square.png` (same file copied into each app's
+    `assets/icon/app_icon.png`, plus a circular transparent-background
+    `app_icon_foreground.png` for Android's adaptive-icon safe zone).
+  - **Colors sampled directly from the logo** (via a k-means cluster over its
+    saturated pixels, then rounded to clean hex values) and defined as named
+    constants on `AppTheme` (`shared/ssd_shared/lib/theme/app_theme.dart`):
+    `brandNavy` `#1F425B` (the logo's ring/text — now the app's primary seed
+    color), `brandGold` `#C79A45` (the wheat sheaf — secondary), `brandGreen`
+    `#6B8E4E` (the fields — tertiary; several screens already used
+    `colorScheme.tertiary` for a "delivered/approved" status color, so this
+    reads as literally correct now, not just thematically close), `brandCream`
+    `#FBF6E8` (the badge's background — used for splash screens and the
+    Admin Web PWA manifest instead of Flutter's default blue).
+  - `flutter_launcher_icons` + `flutter_native_splash` config lives in each
+    app's `pubspec.yaml`; the Admin Web app additionally got its
+    `web/icons/*.png`, `web/favicon.png` and `web/manifest.json` updated
+    directly (those aren't covered by either generator for web).
+  - Replacing the logo again later: swap `docs/branding/logo_original.jpg`
+    and re-derive the square crop (or provide a new one already square/
+    high-res), copy it to each app's `assets/icon/app_icon*.png`, then re-run
+    `dart run flutter_launcher_icons` and
+    `dart run flutter_native_splash:create` in each app folder — no code
+    changes needed either way.
+- **TODO review**: `grep -rn TODO` across `shared/` and all four apps' `lib/`
+  returned nothing — no stray incomplete markers left in the code.
+- Tests: `shared/ssd_shared/test/notifications_test.dart` (5, new); every
+  app's existing suite still passes (Admin Web gained its own
+  `widget_test.dart`, matching the other three apps' pattern).
+- **Left open**: delivery-boy route-reassignment notifications (Requirements
+  §4.10 mentions this; only price/bill/payment/request events are wired up);
+  PDF/Excel export (already flagged in Phase 7); Storage-dependent features
+  (still on hold, see below).
+
 ## What's PENDING
 
-- **Next: Phase 8 — Admin Web panel, notifications, store release prep**
-  (the final planned phase).
-  Note: `Admin App/Web/` also has NOT had `flutter create` run yet.
+**All 8 phases of the original Development Plan are done.** What's left falls
+into two buckets: the release-readiness checklist immediately below (all
+user-only actions — nothing further to code), and optional Future
+Enhancements (Requirements §12) that were never scoped as phases and would
+need the user to pick one before any work starts on it — see the end of this
+section.
+
+- **Release-readiness checklist** — everything below needs the user, not
+  Claude Code (Firebase Console/Play Console/App Store Connect access,
+  physical publishing, and decisions with real, hard-to-reverse trade-offs):
+  1. **Android signing key**: Windows can build a signed `.aab`, but it needs
+     a keystore Claude Code has not generated. This is a decision with a real,
+     irreversible consequence: **losing this keystore (or its password) means
+     the app can never be updated again under the same identity on the Play
+     Store** — Google cannot recover or reset it. Steps: run
+     `keytool -genkey -v -keystore <path>.jks -keyalg RSA -keysize 2048
+     -validity 10000 -alias <your-alias>` (Java's `keytool`, bundled with the
+     Android SDK/JDK already installed), store the resulting `.jks` file and
+     its passwords somewhere backed up and never committed to git (the
+     `.gitignore` already excludes `**/*.keystore` and `key.properties`), then
+     add a `key.properties` + signing config to
+     `Admin App/Mobile app/android/app/build.gradle.kts` pointing at it. Tell
+     Claude Code once you have the keystore file and it can wire up the
+     Gradle signing config.
+  2. **Play Store listing** (Play Console, console-only): app description,
+     screenshots (from a real device — Phase 1–8 testing was all on your
+     Redmi Note 9 Pro Max, which works for this), category, content rating
+     questionnaire, and pricing (free, per the business model so far). None
+     of this can be done from the codebase.
+  3. **iOS build**: still needs a Mac (or a cloud Mac service — see
+     PROJECT_STATUS.md's original recommendation), for `flutter build ios`,
+     Xcode signing, and App Store Connect's own listing steps. Fully deferred
+     until one is available; nothing here changes that.
+  4. **A staged rollout decision**: whether to launch Android-only first (the
+     Mac/iOS gap allows this) or hold for both platforms together — a
+     business call, not a technical one.
 - iOS has only been REGISTERED in Firebase, never actually built or run —
   needs a Mac, deferred until one is available.
 - Storage / photo-upload features are on hold pending a Blaze-plan decision.
+- **Optional Future Enhancements** (Requirements §12 — none of these are
+  scoped or started; each would become its own `feature/phase-9-...`-style
+  branch only once the user picks one): online payment gateway with
+  auto-reconciliation, delivery-boy route optimization, multiple admin/staff
+  roles with granular permissions, a customer referral/loyalty program, an
+  inventory/procurement-planning module, WhatsApp-based notifications, and a
+  delivery-quality rating/feedback flow from customers.
 
 ---
 

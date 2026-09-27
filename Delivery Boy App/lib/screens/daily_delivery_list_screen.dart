@@ -246,6 +246,8 @@ class _DailyDeliveryListScreenState extends State<DailyDeliveryListScreen> {
       appBar: AppBar(
         title: const Text('Today\'s deliveries'),
         actions: [
+          NotificationCentre(
+              userId: widget.deliveryBoyId, firestoreService: widget.firestoreService),
           IconButton(
             tooltip: 'Summary',
             icon: const Icon(Icons.summarize_outlined),

@@ -26,6 +26,11 @@ class AdminHomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('SSD Farm — Admin'),
         actions: [
+          if (authService.currentUserId != null)
+            NotificationCentre(
+              userId: authService.currentUserId!,
+              firestoreService: FirestoreService(),
+            ),
           IconButton(
             tooltip: 'Log out',
             icon: const Icon(Icons.logout),
@@ -73,6 +78,7 @@ class AdminHomeScreen extends StatelessWidget {
                     builder: (_) => PriceListScreen(
                       authService: authService,
                       pricingService: PricingService(),
+                      firestoreService: FirestoreService(),
                     ),
                   ),
                 ),

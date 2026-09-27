@@ -5,6 +5,7 @@ import '../models/customer_model.dart';
 import '../models/delivery_boy_model.dart';
 import '../models/delivery_exception_model.dart';
 import '../models/delivery_model.dart';
+import '../models/notification_model.dart';
 import '../models/payment_model.dart';
 import '../models/price_model.dart';
 import '../models/subscription_model.dart';
@@ -219,21 +220,89 @@ class FirestoreService {
     final what = request.type == ExceptionType.skip
         ? 'your request to skip delivery on ${_ymd(request.date)}'
         : 'your quantity-change request for ${_ymd(request.date)}';
-    batch.set(_db.collection(_notifications).doc(), {
-      'targetUserRef': request.customerId,
-      'type': approve ? 'requestApproved' : 'requestRejected',
-      'message': approve
+    _addNotification(
+      batch: batch,
+      targetUserRef: request.customerId,
+      type: approve ? 'requestApproved' : 'requestRejected',
+      message: approve
           ? 'Admin approved $what.'
           : 'Admin rejected $what.${note == null || note.isEmpty ? '' : ' Note: $note'}',
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    );
     return batch.commit();
   }
 
   static String _ymd(DateTime d) => '${d.year}-'
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
+
+  // --------------------------------------------------------- notifications
+
+  /// Live, newest-first notifications for [userId] — the in-app substitute
+  /// for real push on Spark (Requirements §2.4, §7).
+  Stream<List<NotificationModel>> watchNotifications(String userId) {
+    return _db
+        .collection(_notifications)
+        .where('targetUserRef', isEqualTo: userId)
+        .snapshots()
+        .map((snap) {
+      final list = [
+        for (final doc in snap.docs) NotificationModel.fromFirestore(doc),
+      ];
+      list.sort((a, b) {
+        final aAt = a.createdAt;
+        final bAt = b.createdAt;
+        if (aAt == null || bAt == null) return 0;
+        return bAt.compareTo(aAt);
+      });
+      return list;
+    });
+  }
+
+  Future<void> markNotificationRead(String id) =>
+      _db.collection(_notifications).doc(id).update({'read': true});
+
+  /// Writes one notification directly (outside a batch already in progress
+  /// elsewhere) — used by Admin actions like generating a bill or recording a
+  /// payment.
+  Future<void> notify({
+    required String targetUserRef,
+    required String type,
+    required String message,
+  }) {
+    final batch = _db.batch();
+    _addNotification(
+        batch: batch, targetUserRef: targetUserRef, type: type, message: message);
+    return batch.commit();
+  }
+
+  /// Same as [notify], for several recipients at once (e.g. a price change
+  /// that goes out to every active customer) — batched together.
+  Future<void> notifyMany({
+    required List<String> targetUserRefs,
+    required String type,
+    required String message,
+  }) {
+    final batch = _db.batch();
+    for (final ref in targetUserRefs) {
+      _addNotification(batch: batch, targetUserRef: ref, type: type, message: message);
+    }
+    return batch.commit();
+  }
+
+  void _addNotification({
+    required WriteBatch batch,
+    required String targetUserRef,
+    required String type,
+    required String message,
+  }) {
+    batch.set(_db.collection(_notifications).doc(), {
+      'targetUserRef': targetUserRef,
+      'type': type,
+      'message': message,
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   // ------------------------------------------------------------- deliveries
 
@@ -417,6 +486,15 @@ class FirestoreService {
         .where('date', isLessThanOrEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(to)))
         .get();
     return [for (final doc in snap.docs) PaymentModel.fromFirestore(doc)];
+  }
+
+  /// One bill by id, or null — used to tell a brand-new bill apart from a
+  /// refresh of one that already existed, so Admin generating/refreshing a
+  /// bill only notifies the customer the first time (see [notify] call
+  /// sites in the Admin app).
+  Future<BillModel?> getBill(String id) async {
+    final doc = await _db.collection(_bills).doc(id).get();
+    return doc.exists ? BillModel.fromFirestore(doc) : null;
   }
 
   /// Every bill across all customers — used by the Outstanding Dues report
