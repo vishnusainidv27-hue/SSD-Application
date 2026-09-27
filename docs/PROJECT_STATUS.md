@@ -62,6 +62,13 @@ Companion docs in this same `docs/` folder:
 - **Git**: monorepo. Branches: `main` (approved releases) ← `develop`
   (integration) ← `feature/phase-n-...` (one per phase). Remote:
   `https://github.com/vishnusainidv27-hue/SSD-Application`.
+- **Branding**: the business is "Shree Shyam Dairy Farm"; the logo (a circular
+  cream-badge crest with a cow/farm scene, navy ring and text, gold wheat
+  sheaves) is at `docs/branding/logo_original.jpg`, supplied by the user in
+  Phase 8. `AppTheme` (`shared/ssd_shared/lib/theme/app_theme.dart`) derives
+  the whole app color scheme from colors sampled off this logo — see Phase 8's
+  entry below for the exact hex values and how each app's icon was built from
+  it. Do not use any other color palette or logo without the user's say-so.
 
 ---
 
@@ -423,14 +430,34 @@ release-readiness checklist below for what's left before a store submission.
   (fanned out to every active customer subscribed to that milk type).
 - **Firestore rules deployed**: a user can read and mark-read their own
   notifications; only Admin can create/delete them.
-- **App icons & splash screens** for all four apps
-  (`flutter_launcher_icons` + `flutter_native_splash`, config in each app's
-  `pubspec.yaml`): **placeholder branding** — a plain milk-drop glyph in the
-  app's own brand color (`#1F3864`, `AppTheme`'s `colorSchemeSeed`), generated
-  because no real logo exists yet (the user chose this over providing one now
-  or skipping icons). Swap `assets/icon/app_icon*.png` in each app for a real
-  logo whenever ready, then re-run `dart run flutter_launcher_icons` and
-  `dart run flutter_native_splash:create` — no code changes needed either way.
+- **Real branding — the SSD Farm (Shree Shyam Dairy Farm) logo**, supplied by
+  the user partway through Phase 8, replacing the placeholder milk-drop glyph
+  originally generated here:
+  - Original logo saved at `docs/branding/logo_original.jpg`; the square,
+    cream-padded crop used as the actual app icon source is
+    `docs/branding/logo_icon_square.png` (same file copied into each app's
+    `assets/icon/app_icon.png`, plus a circular transparent-background
+    `app_icon_foreground.png` for Android's adaptive-icon safe zone).
+  - **Colors sampled directly from the logo** (via a k-means cluster over its
+    saturated pixels, then rounded to clean hex values) and defined as named
+    constants on `AppTheme` (`shared/ssd_shared/lib/theme/app_theme.dart`):
+    `brandNavy` `#1F425B` (the logo's ring/text — now the app's primary seed
+    color), `brandGold` `#C79A45` (the wheat sheaf — secondary), `brandGreen`
+    `#6B8E4E` (the fields — tertiary; several screens already used
+    `colorScheme.tertiary` for a "delivered/approved" status color, so this
+    reads as literally correct now, not just thematically close), `brandCream`
+    `#FBF6E8` (the badge's background — used for splash screens and the
+    Admin Web PWA manifest instead of Flutter's default blue).
+  - `flutter_launcher_icons` + `flutter_native_splash` config lives in each
+    app's `pubspec.yaml`; the Admin Web app additionally got its
+    `web/icons/*.png`, `web/favicon.png` and `web/manifest.json` updated
+    directly (those aren't covered by either generator for web).
+  - Replacing the logo again later: swap `docs/branding/logo_original.jpg`
+    and re-derive the square crop (or provide a new one already square/
+    high-res), copy it to each app's `assets/icon/app_icon*.png`, then re-run
+    `dart run flutter_launcher_icons` and
+    `dart run flutter_native_splash:create` in each app folder — no code
+    changes needed either way.
 - **TODO review**: `grep -rn TODO` across `shared/` and all four apps' `lib/`
   returned nothing — no stray incomplete markers left in the code.
 - Tests: `shared/ssd_shared/test/notifications_test.dart` (5, new); every
@@ -446,11 +473,7 @@ release-readiness checklist below for what's left before a store submission.
 - **Release-readiness checklist** — everything below needs the user, not
   Claude Code (Firebase Console/Play Console/App Store Connect access,
   physical publishing, and decisions with real, hard-to-reverse trade-offs):
-  1. **Real branding**: replace the placeholder milk-drop icon with the
-     actual SSD Farm logo (see "App icons & splash screens" above for the
-     exact regeneration command) before any store submission — a placeholder
-     icon should never ship to production.
-  2. **Android signing key**: Windows can build a signed `.aab`, but it needs
+  1. **Android signing key**: Windows can build a signed `.aab`, but it needs
      a keystore Claude Code has not generated. This is a decision with a real,
      irreversible consequence: **losing this keystore (or its password) means
      the app can never be updated again under the same identity on the Play
@@ -464,16 +487,16 @@ release-readiness checklist below for what's left before a store submission.
      `Admin App/Mobile app/android/app/build.gradle.kts` pointing at it. Tell
      Claude Code once you have the keystore file and it can wire up the
      Gradle signing config.
-  3. **Play Store listing** (Play Console, console-only): app description,
+  2. **Play Store listing** (Play Console, console-only): app description,
      screenshots (from a real device — Phase 1–8 testing was all on your
      Redmi Note 9 Pro Max, which works for this), category, content rating
      questionnaire, and pricing (free, per the business model so far). None
      of this can be done from the codebase.
-  4. **iOS build**: still needs a Mac (or a cloud Mac service — see
+  3. **iOS build**: still needs a Mac (or a cloud Mac service — see
      PROJECT_STATUS.md's original recommendation), for `flutter build ios`,
      Xcode signing, and App Store Connect's own listing steps. Fully deferred
      until one is available; nothing here changes that.
-  5. **A staged rollout decision**: whether to launch Android-only first (the
+  4. **A staged rollout decision**: whether to launch Android-only first (the
      Mac/iOS gap allows this) or hold for both platforms together — a
      business call, not a technical one.
 - iOS has only been REGISTERED in Firebase, never actually built or run —

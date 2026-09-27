@@ -32,15 +32,14 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-# Placeholder branding (a plain milk-drop glyph in the app's own brand color,
-# see docs/PROJECT_STATUS.md Phase 8) — swap ../Mobile app/assets/icon/*.png
-# for the real logo when ready, then re-run
-# `dart run flutter_native_splash:create`. This app has no icon step of its
-# own (a browser tab has no app-icon concept the way Android/iOS do); only
-# the web loading splash is generated here.
+# SSD Farm (Shree Shyam Dairy Farm) logo — re-run
+# `dart run flutter_native_splash:create` after replacing
+# ../Mobile app/assets/icon/*.png. This app has no icon step of its own (a
+# browser tab has no app-icon concept the way Android/iOS do); only the web
+# loading splash is generated here.
 flutter_native_splash:
-  color: "#FFFFFF"
+  color: "#FBF6E8"
   image: "../Mobile app/assets/icon/app_icon_foreground.png"
-  color_dark: "#1F3864"
+  color_dark: "#1F425B"
   image_dark: "../Mobile app/assets/icon/app_icon_foreground.png"
   web: true
