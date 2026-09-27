@@ -69,6 +69,11 @@ Companion docs in this same `docs/` folder:
   the whole app color scheme from colors sampled off this logo — see Phase 8's
   entry below for the exact hex values and how each app's icon was built from
   it. Do not use any other color palette or logo without the user's say-so.
+- **UI/design**: `docs/DESIGN_SYSTEM.md` is the reference for how every screen
+  should look (colors, spacing, component theme, shared `SectionHeader`/
+  `EmptyState`/`NotificationCentre` widgets, the home-screen layout pattern).
+  Read it before touching any screen's layout or styling — see the "UI/design
+  polish pass" entry below for what it replaced and why.
 
 ---
 
@@ -469,6 +474,51 @@ a store submission (all of it requires the user, not further coding).
   §4.10 mentions this; only price/bill/payment/request events are wired up);
   PDF/Excel export (already flagged in Phase 7); Storage-dependent features
   (still on hold, see below).
+
+## What's DONE — post-launch: Android release signing prep + UI/design polish
+
+Two pieces of work after all 8 phases were confirmed — neither maps to a
+numbered Development Plan phase, so neither used a `feature/phase-n-...`
+branch: the signing prep was committed straight to `develop` (small, inert
+until a keystore exists); the UI polish used `feature/ui-design-polish`.
+
+- **Android release signing**: `Admin App/Mobile app/android/app/build.gradle.kts`
+  now reads `android/key.properties` if present and signs release builds
+  with it, falling back to the debug key otherwise (unchanged from before).
+  Verified both paths: `flutter build apk --debug` (no keystore) and
+  `flutter build appbundle --release` (also no keystore — confirms the
+  fallback itself works end-to-end, producing a real, installable `.aab`).
+  Only the keystore file itself is still missing — see the release-readiness
+  checklist below; Claude Code deliberately doesn't generate that.
+- **UI/design polish pass** — see `docs/DESIGN_SYSTEM.md` for the reference
+  going forward:
+  - `AppTheme` gained a full Material 3 component theme (AppBar, Card,
+    buttons, chips, inputs, dividers, dialogs, snackbars, nav rail) built
+    from the brand palette, plus an `AppSpacing` scale (`xs`/`sm`/`md`/`lg`/
+    `xl` = 4/8/16/24/32) — most of the visual improvement is "free" via
+    inheritance, no per-screen changes needed.
+  - New shared widgets: `SectionHeader` (a consistent titled-section header,
+    replacing every screen's ad hoc version) and `EmptyState` (a consistent
+    "nothing here"/"couldn't load this" placeholder, replacing bare
+    `Center(child: Text(...))`). Both are used throughout Admin, Customer and
+    Delivery Boy — forms, reports, lists.
+  - The three apps' home/landing screens were redesigned around a shared
+    pattern: a navy header card (greeting or live status) + grouped, titled
+    sections below it. `AdminHomeScreen` in particular went from a flat list
+    of buttons to a 2-column grid of icon tiles grouped into "Customers &
+    delivery" / "Pricing & reports" / "Account".
+  - Status colors (delivered/approved = green, not-delivered/rejected = red,
+    skipped = gray, pending = navy) are now explicitly documented as a
+    standing `colorScheme` convention (`tertiary`/`error`/`outline`/`primary`)
+    rather than something each screen happened to do the same way.
+  - Verified: all four packages analyze clean, all 74 existing tests still
+    pass (no logic changed, only presentation), and both the Admin mobile app
+    (`flutter build apk --debug`) and Admin Web app (`flutter build web`)
+    build successfully afterward.
+  - **Left open**: the six Report screens' internal layout (lists, filter
+    chips) wasn't individually redesigned beyond inheriting the new theme —
+    reasonable given they're dense data screens rather than a first-impression
+    surface; revisit if the user wants further polish there specifically.
 
 ## What's PENDING
 

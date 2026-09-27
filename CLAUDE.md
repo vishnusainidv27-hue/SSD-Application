@@ -5,6 +5,11 @@ Before doing any work in this repo, read these three files in order:
 2. docs/REQUIREMENTS.md — full feature spec (what to build)
 3. docs/DEVELOPMENT_PLAN.md — phase breakdown, folder structure, git workflow
 
+Before touching any UI (a new screen, or editing an existing one's layout/styling),
+also read docs/DESIGN_SYSTEM.md — colors, spacing, component theme, and the shared
+`SectionHeader`/`EmptyState`/`NotificationCentre` widgets to reuse instead of
+inventing a new pattern.
+
 Always follow the git workflow described in DEVELOPMENT_PLAN.md (branch per phase off develop). At the end of any meaningful chunk of work, update docs/PROJECT_STATUS.md to reflect what changed.
 
 ---
