@@ -14,11 +14,32 @@ dependencies:
   firebase_core: ^3.0.0
   ssd_shared:
     path: ../../shared/ssd_shared
+  # Reuses every Admin screen unmodified from the mobile app (Development
+  # Plan Phase 8: "reusing the same screens and ssd_shared package as the
+  # mobile Admin app") via a local path dependency — a plain Dart package
+  # dependency works the same whether the target is an "app" or a "package",
+  # so this needs no code to move anywhere. Only this app's own shell
+  # (main.dart + a desktop side-nav home screen) is new.
+  admin_mobile_app:
+    path: ../Mobile app
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_native_splash: ^2.4.8
 
 flutter:
   uses-material-design: true
+
+# SSD Farm (Shree Shyam Dairy Farm) logo — re-run
+# `dart run flutter_native_splash:create` after replacing
+# ../Mobile app/assets/icon/*.png. This app has no icon step of its own (a
+# browser tab has no app-icon concept the way Android/iOS do); only the web
+# loading splash is generated here.
+flutter_native_splash:
+  color: "#FBF6E8"
+  image: "../Mobile app/assets/icon/app_icon_foreground.png"
+  color_dark: "#1F425B"
+  image_dark: "../Mobile app/assets/icon/app_icon_foreground.png"
+  web: true

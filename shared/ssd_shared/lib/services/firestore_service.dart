@@ -1,5 +1,513 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../models/bill_model.dart';
+import '../models/customer_model.dart';
+import '../models/delivery_boy_model.dart';
+import '../models/delivery_exception_model.dart';
+import '../models/delivery_model.dart';
+import '../models/notification_model.dart';
+import '../models/payment_model.dart';
+import '../models/price_model.dart';
+import '../models/subscription_model.dart';
+
 /// Generic Firestore read/write helpers shared by all apps.
 /// Extended in every phase as new collections are introduced.
+///
+/// Phase 2 adds customer + subscription CRUD (Admin only — enforced by the
+/// Firestore rules).
 class FirestoreService {
-  // TODO: CRUD helpers for customers, subscriptions, deliveries, priceList, bills.
+  FirestoreService({FirebaseFirestore? firestore})
+      : _firestoreOverride = firestore;
+
+  static const String _customers = 'customers';
+  static const String _subscriptions = 'subscriptions';
+  static const String _users = 'users';
+  static const String _exceptions = 'deliveryExceptions';
+  static const String _deliveries = 'deliveries';
+  static const String _bills = 'bills';
+  static const String _notifications = 'notifications';
+  static const String _deliveryBoyRole = 'deliveryBoy';
+  static const String _payments = 'payments';
+
+  final FirebaseFirestore? _firestoreOverride;
+
+  // Resolved lazily so constructing the service never requires Firebase to be
+  // initialised yet.
+  FirebaseFirestore get _db => _firestoreOverride ?? FirebaseFirestore.instance;
+
+  // ---------------------------------------------------------------- customers
+
+  /// Live list of all customers, ordered by name. Search/filters are applied
+  /// client-side (the customer base is hundreds, not millions, and Firestore
+  /// has no substring search).
+  Stream<List<CustomerModel>> watchCustomers() {
+    return _db.collection(_customers).orderBy('name').snapshots().map(
+          (snap) => [for (final doc in snap.docs) CustomerModel.fromFirestore(doc)],
+        );
+  }
+
+  Future<CustomerModel?> getCustomer(String id) async {
+    final doc = await _db.collection(_customers).doc(id).get();
+    return doc.exists ? CustomerModel.fromFirestore(doc) : null;
+  }
+
+  /// One-shot read of every customer — used by [DeliveryPlanningService],
+  /// which needs the whole list rather than a live view.
+  Future<List<CustomerModel>> getAllCustomers() async {
+    final snap = await _db.collection(_customers).get();
+    return [for (final doc in snap.docs) CustomerModel.fromFirestore(doc)];
+  }
+
+  /// Subscriptions for one customer (one doc per milk type).
+  Future<List<SubscriptionModel>> getSubscriptions(String customerId) async {
+    final snap = await _db
+        .collection(_subscriptions)
+        .where('customerId', isEqualTo: customerId)
+        .get();
+    return [for (final doc in snap.docs) SubscriptionModel.fromFirestore(doc)];
+  }
+
+  /// Live version of [getSubscriptions], for the Customer App's own dashboard
+  /// (so a plan change Admin makes shows up without a manual refresh).
+  Stream<List<SubscriptionModel>> watchSubscriptions(String customerId) {
+    return _db
+        .collection(_subscriptions)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snap) =>
+            [for (final doc in snap.docs) SubscriptionModel.fromFirestore(doc)]);
+  }
+
+  /// Writes the customer profile (id = the customer's Auth uid, from
+  /// `AuthService.createUserAccount`) and its subscriptions in one batch.
+  Future<void> createCustomer(
+    CustomerModel customer,
+    List<SubscriptionModel> subscriptions,
+  ) {
+    final batch = _db.batch();
+    batch.set(_db.collection(_customers).doc(customer.id), {
+      ...customer.toMap(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    for (final sub in subscriptions) {
+      batch.set(_subscriptionRef(customer.id, sub.milkType), sub.toMap());
+    }
+    return batch.commit();
+  }
+
+  /// Updates the customer profile and syncs subscriptions: types in
+  /// [subscriptions] are written, previously-saved types not in it are removed.
+  /// The name is also mirrored to `users/{id}` so both docs stay consistent.
+  Future<void> updateCustomer(
+    CustomerModel customer,
+    List<SubscriptionModel> subscriptions,
+  ) async {
+    final keep = {for (final s in subscriptions) s.milkType};
+    final batch = _db.batch();
+    batch.update(_db.collection(_customers).doc(customer.id), customer.toMap());
+    batch.update(
+        _db.collection(_users).doc(customer.id), {'name': customer.name});
+    for (final sub in subscriptions) {
+      batch.set(_subscriptionRef(customer.id, sub.milkType), sub.toMap());
+    }
+    for (final type in MilkType.values.where((t) => !keep.contains(t))) {
+      batch.delete(_subscriptionRef(customer.id, type));
+    }
+    await batch.commit();
+  }
+
+  /// Deactivates / reactivates a customer. Writes both `customers/{id}` and
+  /// `users/{id}` — the latter is what actually blocks login (client-side in
+  /// AuthService and server-side in the Firestore rules' isActiveUser()).
+  Future<void> setCustomerActive(String id, bool active) {
+    final batch = _db.batch();
+    batch.update(_db.collection(_customers).doc(id), {'active': active});
+    batch.update(_db.collection(_users).doc(id), {'active': active});
+    return batch.commit();
+  }
+
+  // ------------------------------------------------------ delivery exceptions
+
+  /// Live list of one customer's delivery exceptions, soonest first. Filtered
+  /// by customer only and sorted here, so no composite index is needed.
+  Stream<List<DeliveryExceptionModel>> watchExceptions(String customerId) {
+    return _db
+        .collection(_exceptions)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snap) {
+      final list = [
+        for (final doc in snap.docs) DeliveryExceptionModel.fromFirestore(doc),
+      ];
+      list.sort((a, b) => a.date.compareTo(b.date));
+      return list;
+    });
+  }
+
+  /// Saves exceptions in one batch. Ids are deterministic, so saving the same
+  /// customer + date + milk type + kind again overwrites the earlier one.
+  Future<void> saveExceptions(List<DeliveryExceptionModel> exceptions) {
+    final batch = _db.batch();
+    for (final e in exceptions) {
+      batch.set(_db.collection(_exceptions).doc(e.id), {
+        ...e.toMap(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+    return batch.commit();
+  }
+
+  Future<void> deleteException(String id) =>
+      _db.collection(_exceptions).doc(id).delete();
+
+  /// Customer-submitted change/skip request (Requirements §5.5): always
+  /// starts `pending`, under an auto-generated id so a resubmission (e.g.
+  /// after a rejection) keeps its own row in the customer's history instead
+  /// of overwriting the earlier one. Only Admin can move it to
+  /// approved/rejected — see [respondToRequest].
+  Future<void> submitRequest(DeliveryExceptionModel request) {
+    assert(request.status == ExceptionStatus.pending);
+    return _db.collection(_exceptions).add({
+      ...request.toMap(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Live queue of every customer's pending requests, oldest first — Admin's
+  /// Approval Queue (Requirements §4.7).
+  Stream<List<DeliveryExceptionModel>> watchPendingRequests() {
+    return _db
+        .collection(_exceptions)
+        .where('status', isEqualTo: ExceptionStatus.pending.name)
+        .snapshots()
+        .map((snap) {
+      final list = [
+        for (final doc in snap.docs) DeliveryExceptionModel.fromFirestore(doc),
+      ];
+      list.sort((a, b) {
+        final aCreated = a.createdAt;
+        final bCreated = b.createdAt;
+        if (aCreated == null || bCreated == null) return 0;
+        return aCreated.compareTo(bCreated);
+      });
+      return list;
+    });
+  }
+
+  /// Admin approves or rejects a pending request, and drops a notification
+  /// for the customer either way (Requirements §4.7: "notify the customer").
+  /// Once approved, [plannedDeliveriesForDate] picks it up automatically —
+  /// nothing else needs to change, since exceptions are already the
+  /// date-effective source of truth the dashboard/history read live.
+  ///
+  /// The notification is written now so Phase 8's notification centre has
+  /// data to show as soon as it's built; there is no in-app place to read it
+  /// yet.
+  Future<void> respondToRequest({
+    required DeliveryExceptionModel request,
+    required bool approve,
+    required String adminUid,
+    String? note,
+  }) {
+    assert(request.status == ExceptionStatus.pending);
+    final batch = _db.batch();
+    batch.update(_db.collection(_exceptions).doc(request.id), {
+      'status':
+          (approve ? ExceptionStatus.approved : ExceptionStatus.rejected).name,
+      'approvedBy': adminUid,
+      'note': note,
+    });
+    final what = request.type == ExceptionType.skip
+        ? 'your request to skip delivery on ${_ymd(request.date)}'
+        : 'your quantity-change request for ${_ymd(request.date)}';
+    _addNotification(
+      batch: batch,
+      targetUserRef: request.customerId,
+      type: approve ? 'requestApproved' : 'requestRejected',
+      message: approve
+          ? 'Admin approved $what.'
+          : 'Admin rejected $what.${note == null || note.isEmpty ? '' : ' Note: $note'}',
+    );
+    return batch.commit();
+  }
+
+  static String _ymd(DateTime d) => '${d.year}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
+  // --------------------------------------------------------- notifications
+
+  /// Live, newest-first notifications for [userId] — the in-app substitute
+  /// for real push on Spark (Requirements §2.4, §7).
+  Stream<List<NotificationModel>> watchNotifications(String userId) {
+    return _db
+        .collection(_notifications)
+        .where('targetUserRef', isEqualTo: userId)
+        .snapshots()
+        .map((snap) {
+      final list = [
+        for (final doc in snap.docs) NotificationModel.fromFirestore(doc),
+      ];
+      list.sort((a, b) {
+        final aAt = a.createdAt;
+        final bAt = b.createdAt;
+        if (aAt == null || bAt == null) return 0;
+        return bAt.compareTo(aAt);
+      });
+      return list;
+    });
+  }
+
+  Future<void> markNotificationRead(String id) =>
+      _db.collection(_notifications).doc(id).update({'read': true});
+
+  /// Writes one notification directly (outside a batch already in progress
+  /// elsewhere) — used by Admin actions like generating a bill or recording a
+  /// payment.
+  Future<void> notify({
+    required String targetUserRef,
+    required String type,
+    required String message,
+  }) {
+    final batch = _db.batch();
+    _addNotification(
+        batch: batch, targetUserRef: targetUserRef, type: type, message: message);
+    return batch.commit();
+  }
+
+  /// Same as [notify], for several recipients at once (e.g. a price change
+  /// that goes out to every active customer) — batched together.
+  Future<void> notifyMany({
+    required List<String> targetUserRefs,
+    required String type,
+    required String message,
+  }) {
+    final batch = _db.batch();
+    for (final ref in targetUserRefs) {
+      _addNotification(batch: batch, targetUserRef: ref, type: type, message: message);
+    }
+    return batch.commit();
+  }
+
+  void _addNotification({
+    required WriteBatch batch,
+    required String targetUserRef,
+    required String type,
+    required String message,
+  }) {
+    batch.set(_db.collection(_notifications).doc(), {
+      'targetUserRef': targetUserRef,
+      'type': type,
+      'message': message,
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // ------------------------------------------------------------- deliveries
+
+  /// Live list of one customer's delivery records, soonest first. Filtered by
+  /// customer only (matches the Firestore rule) and sorted here; date-range,
+  /// milk-type and status filters are applied client-side by the caller (see
+  /// `filterDeliveries` in the Customer App), same pattern as the customer
+  /// list's search/filters.
+  Stream<List<DeliveryModel>> watchDeliveries(String customerId) {
+    return _db
+        .collection(_deliveries)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snap) {
+      final list = [
+        for (final doc in snap.docs) DeliveryModel.fromFirestore(doc),
+      ];
+      list.sort((a, b) => a.date.compareTo(b.date));
+      return list;
+    });
+  }
+
+  // ------------------------------------------------------------------ bills
+
+  /// Live list of one customer's generated bills, newest first.
+  Stream<List<BillModel>> watchBills(String customerId) {
+    return _db
+        .collection(_bills)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snap) {
+      final list = [for (final doc in snap.docs) BillModel.fromFirestore(doc)];
+      list.sort((a, b) => b.periodTo.compareTo(a.periodTo));
+      return list;
+    });
+  }
+
+  // ----------------------------------------------------------- delivery boys
+
+  /// Live list of delivery boy accounts (`users` where `role == 'deliveryBoy'`),
+  /// ordered by name. There's no separate `deliveryBoys` collection yet —
+  /// see [DeliveryBoyModel].
+  Stream<List<DeliveryBoyModel>> watchDeliveryBoys() {
+    return _db
+        .collection(_users)
+        .where('role', isEqualTo: _deliveryBoyRole)
+        .snapshots()
+        .map((snap) {
+      final list = [
+        for (final doc in snap.docs) DeliveryBoyModel.fromFirestore(doc),
+      ];
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      return list;
+    });
+  }
+
+  // ------------------------------------------------ delivery boy daily list
+
+  /// Live list of [deliveryBoyId]'s `deliveries` rows for one [date] — the
+  /// Delivery Boy App's daily worklist. Both fields are exact matches, so
+  /// this needs no composite index.
+  Stream<List<DeliveryModel>> watchDeliveriesForDate(
+      String deliveryBoyId, DateTime date) {
+    return _deliveriesForDateQuery(deliveryBoyId, date)
+        .snapshots()
+        .map((snap) =>
+            [for (final doc in snap.docs) DeliveryModel.fromFirestore(doc)]);
+  }
+
+  /// One-shot version of [watchDeliveriesForDate], for the delivery boy's
+  /// end-of-day summary and short history — those look at several past days
+  /// at once, where a live listener per day isn't worth keeping open.
+  Future<List<DeliveryModel>> getDeliveriesForDate(
+      String deliveryBoyId, DateTime date) async {
+    final snap = await _deliveriesForDateQuery(deliveryBoyId, date).get();
+    return [for (final doc in snap.docs) DeliveryModel.fromFirestore(doc)];
+  }
+
+  Query<Map<String, dynamic>> _deliveriesForDateQuery(
+          String deliveryBoyId, DateTime date) =>
+      _db
+          .collection(_deliveries)
+          .where('deliveryBoyId', isEqualTo: deliveryBoyId)
+          .where('date',
+              isEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(date)));
+
+  /// Live list of every customer's `deliveries` rows for one [date] — Admin's
+  /// tracking dashboard (Requirements §4.4); society/boy/milk-type/status
+  /// filters are applied client-side, same pattern as the customer list.
+  Stream<List<DeliveryModel>> watchAllDeliveriesForDate(DateTime date) {
+    return _db
+        .collection(_deliveries)
+        .where('date', isEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(date)))
+        .snapshots()
+        .map((snap) =>
+            [for (final doc in snap.docs) DeliveryModel.fromFirestore(doc)]);
+  }
+
+  /// Delivery boy marks one entry delivered/not-delivered (with an optional
+  /// remark — the mandatory "not delivered" reason is folded into it by the
+  /// caller). Sets `markedAt` to the server time.
+  Future<void> markDelivery(DeliveryModel delivery) {
+    assert(delivery.status == DeliveryStatus.delivered ||
+        delivery.status == DeliveryStatus.notDelivered);
+    return _db
+        .collection(_deliveries)
+        .doc(delivery.id)
+        .set(delivery.toMap(markStatus: true));
+  }
+
+  // -------------------------------------------------------------- payments
+
+  /// Live payment history for one customer, newest first — Customer App's
+  /// bill view (Requirements §5.4) and Admin's bill screen both use this.
+  Stream<List<PaymentModel>> watchPayments(String customerId) {
+    return _db
+        .collection(_payments)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snap) {
+      final list = [for (final doc in snap.docs) PaymentModel.fromFirestore(doc)];
+      list.sort((a, b) => b.date.compareTo(a.date));
+      return list;
+    });
+  }
+
+  /// Records a payment against [bill] and updates its `amountPaid`/
+  /// `netPayable` atomically via [FieldValue.increment] — safe even if two
+  /// payments are recorded around the same time, since it never reads the
+  /// bill's current totals first. `recordedBy` is the Admin's uid.
+  Future<void> recordPayment({
+    required BillModel bill,
+    required double amount,
+    required PaymentMode mode,
+    required DateTime date,
+    required String recordedBy,
+  }) {
+    final batch = _db.batch();
+    batch.set(
+      _db.collection(_payments).doc(),
+      PaymentModel(
+        id: '',
+        customerId: bill.customerId,
+        billId: bill.id,
+        amount: amount,
+        mode: mode,
+        date: date,
+        recordedBy: recordedBy,
+      ).toMap(),
+    );
+    batch.update(_db.collection(_bills).doc(bill.id), {
+      'amountPaid': FieldValue.increment(amount),
+      'netPayable': FieldValue.increment(-amount),
+    });
+    return batch.commit();
+  }
+
+  // --------------------------------------------------- range reports (Admin)
+
+  /// Every delivery across all customers whose date falls in
+  /// [from]–[to] (inclusive) — a single range filter on one field, so no
+  /// composite index is needed. Powers the delivery / consumption /
+  /// delivery-boy-performance reports, each aggregating this client-side.
+  Future<List<DeliveryModel>> getAllDeliveriesInRange(
+      DateTime from, DateTime to) async {
+    final snap = await _db
+        .collection(_deliveries)
+        .where('date', isGreaterThanOrEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(from)))
+        .where('date', isLessThanOrEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(to)))
+        .get();
+    return [for (final doc in snap.docs) DeliveryModel.fromFirestore(doc)];
+  }
+
+  /// Every payment across all customers whose date falls in [from]–[to]
+  /// (inclusive) — powers the collection/payment report.
+  Future<List<PaymentModel>> getAllPaymentsInRange(
+      DateTime from, DateTime to) async {
+    final snap = await _db
+        .collection(_payments)
+        .where('date', isGreaterThanOrEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(from)))
+        .where('date', isLessThanOrEqualTo: PriceModel.dayToTimestamp(PriceModel.dateOnly(to)))
+        .get();
+    return [for (final doc in snap.docs) PaymentModel.fromFirestore(doc)];
+  }
+
+  /// One bill by id, or null — used to tell a brand-new bill apart from a
+  /// refresh of one that already existed, so Admin generating/refreshing a
+  /// bill only notifies the customer the first time (see [notify] call
+  /// sites in the Admin app).
+  Future<BillModel?> getBill(String id) async {
+    final doc = await _db.collection(_bills).doc(id).get();
+    return doc.exists ? BillModel.fromFirestore(doc) : null;
+  }
+
+  /// Every bill across all customers — used by the Outstanding Dues report
+  /// to find each customer's latest bill. Bounded by the customer count, so a
+  /// one-shot full read is fine at this project's scale.
+  Future<List<BillModel>> getAllBills() async {
+    final snap = await _db.collection(_bills).get();
+    return [for (final doc in snap.docs) BillModel.fromFirestore(doc)];
+  }
+
+  /// Deterministic id (`<customerId>_<milkType>`) so re-saving a subscription
+  /// overwrites rather than duplicates it.
+  DocumentReference<Map<String, dynamic>> _subscriptionRef(
+          String customerId, MilkType type) =>
+      _db.collection(_subscriptions).doc('${customerId}_${type.name}');
 }

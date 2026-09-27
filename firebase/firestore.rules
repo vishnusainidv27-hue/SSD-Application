@@ -2,37 +2,114 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // TODO (Phase 1 onward): tighten these as each collection is built.
-    // Guiding rules from Requirements §2.4 / §10:
-    //  - Admin (role == 'admin') can read/write everything.
-    //  - A customer can only read/write their own `customers/{id}` and
-    //    their own `deliveryExceptions` requests.
-    //  - A delivery boy can only read deliveries assigned to them and
-    //    update status/remark on those documents.
-    //  - Only Admin can write to `priceList`.
-
     function isSignedIn() {
       return request.auth != null;
     }
 
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function role() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return userDoc().role;
+    }
+
+    function isActiveUser() {
+      return userDoc().active != false;
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || role() == 'admin');
-      allow write: if isSignedIn() && role() == 'admin';
+      allow read: if isSignedIn() && (request.auth.uid == userId || (role() == 'admin' && isActiveUser()));
+      allow write: if isSignedIn() && role() == 'admin' && isActiveUser();
     }
 
     match /priceList/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && role() == 'admin';
+      allow read: if isSignedIn() && isActiveUser();
+      allow write: if isSignedIn() && role() == 'admin' && isActiveUser();
     }
 
-    // Placeholder — replace with real per-collection rules as each
-    // phase introduces customers, subscriptions, deliveries, bills, etc.
+    function isAdmin() {
+      return role() == 'admin' && isActiveUser();
+    }
+
+    // A customer may read their own records (doc id = their uid for
+    // `customers`, or a `customerId` field on the document for everything
+    // else); Admin may read/write all of them. Writes to these collections
+    // stay Admin-only for now — Phase 5 adds customer-submitted (pending)
+    // deliveryExceptions, and Phase 6 adds delivery-boy-scoped writes to
+    // `deliveries`.
+    match /customers/{customerId} {
+      // The delivery boy branch only ever needs single-document get()s (the
+      // Delivery Boy App looks up a customer by the id on a `deliveries` row
+      // it already has), never a broad list query, so it's safe even though
+      // it depends on this document's own data.
+      allow read: if isSignedIn() && isActiveUser() &&
+          (request.auth.uid == customerId || isAdmin() ||
+              (role() == 'deliveryBoy' &&
+                  resource.data.assignedDeliveryBoyId == request.auth.uid));
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /subscriptions/{docId} {
+      allow read: if isSignedIn() && isActiveUser() &&
+          (resource.data.customerId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /deliveryExceptions/{docId} {
+      allow read: if isSignedIn() && isActiveUser() &&
+          (resource.data.customerId == request.auth.uid || isAdmin());
+      // A customer may create their own request (Requirements §5.5), but
+      // only as `pending` and only for themselves — they can never approve
+      // their own request or edit/delete an existing one (Admin's Approval
+      // Queue owns that, via update/delete).
+      allow create: if isSignedIn() && isActiveUser() &&
+          (isAdmin() ||
+              (request.resource.data.customerId == request.auth.uid &&
+                  request.resource.data.status == 'pending'));
+      allow update, delete: if isSignedIn() && isAdmin();
+    }
+
+    match /deliveries/{docId} {
+      allow read: if isSignedIn() && isActiveUser() &&
+          (isAdmin() ||
+              resource.data.customerId == request.auth.uid ||
+              (role() == 'deliveryBoy' &&
+                  resource.data.deliveryBoyId == request.auth.uid));
+      // A delivery boy may create/update a row only under their own
+      // deliveryBoyId — Admin's DeliveryPlanningService is what actually
+      // decides which boy a customer's rows belong to (by copying
+      // customers.assignedDeliveryBoyId onto the row at generation time), so
+      // this doesn't let a delivery boy claim someone else's customer; it
+      // only stops them writing under a co-worker's id. Accepted, matching
+      // this project's existing low-stakes risk tolerance (see the password
+      // self-service note above).
+      allow create, update: if isSignedIn() && isActiveUser() &&
+          role() == 'deliveryBoy' &&
+          request.resource.data.deliveryBoyId == request.auth.uid;
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /bills/{docId} {
+      allow read: if isSignedIn() && isActiveUser() &&
+          (resource.data.customerId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /payments/{docId} {
+      allow read: if isSignedIn() && isActiveUser() &&
+          (resource.data.customerId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /notifications/{docId} {
+      allow read, update: if isSignedIn() && isActiveUser() &&
+          resource.data.targetUserRef == request.auth.uid;
+      allow create, delete: if isSignedIn() && isAdmin();
+    }
+
     match /{document=**} {
-      allow read, write: if isSignedIn() && role() == 'admin';
+      allow read, write: if isSignedIn() && role() == 'admin' && isActiveUser();
     }
   }
 }
