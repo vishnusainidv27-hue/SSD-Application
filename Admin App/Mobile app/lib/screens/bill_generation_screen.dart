@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -64,11 +66,23 @@ class _BillGenerationScreenState extends State<BillGenerationScreen> {
       _error = null;
     });
     try {
+      final billId = PricingService.billIdFor(widget.customer.id, _month, _monthEnd);
+      final existedBefore = await widget.firestoreService.getBill(billId) != null;
       final bill = await widget.pricingService.generateBill(
         customerId: widget.customer.id,
         periodFrom: _month,
         periodTo: _monthEnd,
       );
+      if (!existedBefore) {
+        // Only the first generation for a period notifies the customer —
+        // Refresh (re-generating the same period) shouldn't spam them.
+        unawaited(widget.firestoreService.notify(
+          targetUserRef: widget.customer.id,
+          type: 'billGenerated',
+          message: 'Your bill for ${_monthFormat.format(_month)} is ready — '
+              '₹${_amountFormat.format(bill.netPayable)} payable.',
+        ));
+      }
       final deliveries =
           await widget.firestoreService.watchDeliveries(widget.customer.id).first;
       if (!mounted) return;
@@ -114,6 +128,12 @@ class _BillGenerationScreenState extends State<BillGenerationScreen> {
         date: DateTime.now(),
         recordedBy: widget.authService.currentUserId ?? '',
       );
+      unawaited(widget.firestoreService.notify(
+        targetUserRef: widget.customer.id,
+        type: 'paymentReceived',
+        message: 'Payment of ₹${_amountFormat.format(result.amount)} received. '
+            'Thank you!',
+      ));
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Payment recorded.')));

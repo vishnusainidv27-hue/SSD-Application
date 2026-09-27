@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -11,10 +13,12 @@ class PriceListScreen extends StatefulWidget {
     super.key,
     required this.authService,
     required this.pricingService,
+    required this.firestoreService,
   });
 
   final AuthService authService;
   final PricingService pricingService;
+  final FirestoreService firestoreService;
 
   @override
   State<PriceListScreen> createState() => _PriceListScreenState();
@@ -38,6 +42,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
         current: current,
         authService: widget.authService,
         pricingService: widget.pricingService,
+        firestoreService: widget.firestoreService,
       ),
     );
     if (saved == true && mounted) {
@@ -166,12 +171,14 @@ class _SetRateDialog extends StatefulWidget {
     required this.current,
     required this.authService,
     required this.pricingService,
+    required this.firestoreService,
   });
 
   final MilkType milkType;
   final PriceModel? current;
   final AuthService authService;
   final PricingService pricingService;
+  final FirestoreService firestoreService;
 
   @override
   State<_SetRateDialog> createState() => _SetRateDialogState();
@@ -211,19 +218,43 @@ class _SetRateDialogState extends State<_SetRateDialog> {
       _error = null;
     });
     try {
+      final rate = double.parse(_rateController.text.trim());
       await widget.pricingService.setNewRate(
         milkType: widget.milkType,
-        ratePerLitre: double.parse(_rateController.text.trim()),
+        ratePerLitre: rate,
         effectiveFrom: _from,
         changedBy: widget.authService.currentUserId ?? '',
         changedByName: await widget.authService.currentUserName(),
       );
+      unawaited(_notifyCustomers(rate));
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on PricingException catch (e) {
       _fail(e.message);
     } catch (_) {
       _fail('Could not save the rate. Check your connection and try again.');
+    }
+  }
+
+  /// Tells every active, subscribed-to-this-milk-type customer about the new
+  /// rate (Requirements §4.10). Best-effort: a failure here shouldn't block
+  /// the price change itself, which already saved successfully.
+  Future<void> _notifyCustomers(double rate) async {
+    try {
+      final customers = await widget.firestoreService.getAllCustomers();
+      final targets = [
+        for (final c in customers)
+          if (c.active && c.milkTypes.contains(widget.milkType)) c.id,
+      ];
+      if (targets.isEmpty) return;
+      await widget.firestoreService.notifyMany(
+        targetUserRefs: targets,
+        type: 'priceChanged',
+        message: '${_milkLabel(widget.milkType)} is now ₹${_rateFormat.format(rate)} '
+            '/ litre from ${_dateFormat.format(_from)}.',
+      );
+    } catch (_) {
+      // Silent — see doc comment.
     }
   }
 
