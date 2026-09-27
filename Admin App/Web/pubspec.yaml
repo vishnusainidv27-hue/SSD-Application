@@ -14,6 +14,14 @@ dependencies:
   firebase_core: ^3.0.0
   ssd_shared:
     path: ../../shared/ssd_shared
+  # Reuses every Admin screen unmodified from the mobile app (Development
+  # Plan Phase 8: "reusing the same screens and ssd_shared package as the
+  # mobile Admin app") via a local path dependency — a plain Dart package
+  # dependency works the same whether the target is an "app" or a "package",
+  # so this needs no code to move anywhere. Only this app's own shell
+  # (main.dart + a desktop side-nav home screen) is new.
+  admin_mobile_app:
+    path: ../Mobile app
 
 dev_dependencies:
   flutter_test:
