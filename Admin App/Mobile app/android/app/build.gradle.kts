@@ -18,6 +18,30 @@ val mapsApiKey: String = Properties().let { props ->
     props.getProperty("MAPS_API_KEY", "")
 }
 
+// Release signing: reads android/key.properties (gitignored) if it exists,
+// so `flutter build appbundle --release` produces a properly signed .aab
+// once you have a production keystore. Claude Code deliberately never
+// generates this keystore itself — see the release-readiness checklist in
+// docs/PROJECT_STATUS.md: losing it (or its password) means the app can
+// never be updated again under the same identity on the Play Store, so
+// creating it is yours to do and back up safely.
+//
+// To enable: run
+//   keytool -genkey -v -keystore <path>.jks -keyalg RSA -keysize 2048 -validity 10000 -alias <your-alias>
+// then create android/key.properties next to this file's project root with:
+//   storeFile=<path to the .jks, relative to android/app/ or absolute>
+//   storePassword=<the keystore password>
+//   keyAlias=<your-alias>
+//   keyPassword=<the key password>
+// Until key.properties exists, release builds keep signing with the debug
+// key (as the Flutter template does by default) so `flutter run --release`
+// and `flutter build apk --debug` keep working during development.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasReleaseSigning = keystorePropertiesFile.exists()
+val keystoreProperties = Properties().apply {
+    if (hasReleaseSigning) keystorePropertiesFile.inputStream().use { load(it) }
+}
+
 android {
     namespace = "com.ssdfarm.admin_mobile_app"
     compileSdk = flutter.compileSdkVersion
@@ -44,11 +68,25 @@ android {
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                // No android/key.properties yet — see the comment above.
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

@@ -482,20 +482,25 @@ section.
 - **Release-readiness checklist** — everything below needs the user, not
   Claude Code (Firebase Console/Play Console/App Store Connect access,
   physical publishing, and decisions with real, hard-to-reverse trade-offs):
-  1. **Android signing key**: Windows can build a signed `.aab`, but it needs
-     a keystore Claude Code has not generated. This is a decision with a real,
-     irreversible consequence: **losing this keystore (or its password) means
-     the app can never be updated again under the same identity on the Play
-     Store** — Google cannot recover or reset it. Steps: run
+  1. **Android signing key**: the Gradle side is now ready
+     (`Admin App/Mobile app/android/app/build.gradle.kts` reads
+     `android/key.properties` if present and signs release builds with it,
+     falling back to the debug key otherwise — verified both paths still
+     build). **Only the keystore itself is missing, and only you should
+     create it**: this is a decision with a real, irreversible consequence —
+     **losing this keystore (or its password) means the app can never be
+     updated again under the same identity on the Play Store**, and Google
+     cannot recover or reset it. Steps: run
      `keytool -genkey -v -keystore <path>.jks -keyalg RSA -keysize 2048
      -validity 10000 -alias <your-alias>` (Java's `keytool`, bundled with the
      Android SDK/JDK already installed), store the resulting `.jks` file and
      its passwords somewhere backed up and never committed to git (the
      `.gitignore` already excludes `**/*.keystore` and `key.properties`), then
-     add a `key.properties` + signing config to
-     `Admin App/Mobile app/android/app/build.gradle.kts` pointing at it. Tell
-     Claude Code once you have the keystore file and it can wire up the
-     Gradle signing config.
+     create `Admin App/Mobile app/android/key.properties` with `storeFile`,
+     `storePassword`, `keyAlias`, `keyPassword` (see the comment above the
+     signing config in `build.gradle.kts` for the exact format). No further
+     code changes needed — `flutter build appbundle --release` will pick it
+     up automatically.
   2. **Play Store listing** (Play Console, console-only): app description,
      screenshots (from a real device — Phase 1–8 testing was all on your
      Redmi Note 9 Pro Max, which works for this), category, content rating
