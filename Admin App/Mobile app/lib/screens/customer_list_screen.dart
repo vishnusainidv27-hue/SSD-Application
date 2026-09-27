@@ -276,15 +276,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         stream: _customers,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'Could not load customers. Check your connection and '
+            return const EmptyState(
+              icon: Icons.error_outline,
+              message: 'Could not load customers. Check your connection and '
                   'Firestore rules.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
             );
           }
           if (!snapshot.hasData) {

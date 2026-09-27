@@ -92,7 +92,8 @@ class _DeliveryBoyPerformanceReportScreenState
         future: _stats,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text('Could not load this report.'));
+            return const EmptyState(
+              icon: Icons.error_outline, message: 'Could not load this report.');
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -111,7 +112,7 @@ class _DeliveryBoyPerformanceReportScreenState
               ),
               Expanded(
                 child: stats.isEmpty
-                    ? const Center(child: Text('No delivery boys yet.'))
+                    ? const EmptyState(icon: Icons.two_wheeler_outlined, message: 'No delivery boys yet.')
                     : ListView.separated(
                         itemCount: stats.length,
                         separatorBuilder: (_, __) => const Divider(height: 1),

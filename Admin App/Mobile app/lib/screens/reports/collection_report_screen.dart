@@ -88,7 +88,8 @@ class _CollectionReportScreenState extends State<CollectionReportScreen> {
         future: _rows,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text('Could not load this report.'));
+            return const EmptyState(
+              icon: Icons.error_outline, message: 'Could not load this report.');
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -156,7 +157,7 @@ class _CollectionReportScreenState extends State<CollectionReportScreen> {
               ),
               Expanded(
                 child: shown.isEmpty
-                    ? const Center(child: Text('No payments in this range.'))
+                    ? const EmptyState(icon: Icons.payments_outlined, message: 'No payments in this range.')
                     : ListView.separated(
                         itemCount: shown.length,
                         separatorBuilder: (_, __) => const Divider(height: 1),

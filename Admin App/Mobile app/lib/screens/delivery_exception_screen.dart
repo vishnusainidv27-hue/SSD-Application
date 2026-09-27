@@ -264,11 +264,7 @@ class _DeliveryExceptionScreenState extends State<DeliveryExceptionScreen> {
                   child: Text(_error!,
                       style: TextStyle(color: theme.colorScheme.error)),
                 ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Text('Upcoming changes',
-                    style: theme.textTheme.titleMedium),
-              ),
+              const SectionHeader('Upcoming changes', icon: Icons.event_note_outlined),
               if (snapshot.hasError)
                 const Padding(
                   padding: EdgeInsets.all(16),

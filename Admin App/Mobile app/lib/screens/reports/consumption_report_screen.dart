@@ -96,7 +96,8 @@ class _ConsumptionReportScreenState extends State<ConsumptionReportScreen> {
         future: _days,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text('Could not load this report.'));
+            return const EmptyState(
+              icon: Icons.error_outline, message: 'Could not load this report.');
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -151,7 +152,7 @@ class _ConsumptionReportScreenState extends State<ConsumptionReportScreen> {
               ),
               Expanded(
                 child: days.isEmpty
-                    ? const Center(child: Text('No delivered milk in this range.'))
+                    ? const EmptyState(icon: Icons.local_drink_outlined, message: 'No delivered milk in this range.')
                     : ListView.separated(
                         itemCount: days.length,
                         separatorBuilder: (_, __) => const Divider(height: 1),

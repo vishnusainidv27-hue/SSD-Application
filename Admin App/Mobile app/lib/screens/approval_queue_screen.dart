@@ -86,11 +86,9 @@ class _ApprovalQueueScreenState extends State<ApprovalQueueScreen> {
         stream: _pending,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Could not load requests. Check your connection.'),
-              ),
+            return const EmptyState(
+              icon: Icons.error_outline,
+              message: 'Could not load requests. Check your connection.',
             );
           }
           if (!snapshot.hasData) {
@@ -98,7 +96,8 @@ class _ApprovalQueueScreenState extends State<ApprovalQueueScreen> {
           }
           final requests = snapshot.data!;
           if (requests.isEmpty) {
-            return const Center(child: Text('No pending requests.'));
+            return const EmptyState(
+                icon: Icons.check_circle_outline, message: 'No pending requests.');
           }
           return ListView.separated(
             padding: const EdgeInsets.all(12),

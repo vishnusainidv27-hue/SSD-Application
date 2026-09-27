@@ -86,13 +86,11 @@ class _BillViewScreenState extends State<BillViewScreen> {
             stream: _bills,
             builder: (context, billSnap) {
               if (deliverySnap.hasError || billSnap.hasError) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text('Could not load your bill. Check your '
-                        'connection and try again.'),
-                  ),
-                );
+                return const EmptyState(
+              icon: Icons.error_outline,
+              message: 'Could not load your bill. Check your '
+                        'connection and try again.',
+            );
               }
               if (!deliverySnap.hasData || !billSnap.hasData) {
                 return const Center(child: CircularProgressIndicator());
@@ -151,8 +149,7 @@ class _BillViewScreenState extends State<BillViewScreen> {
                     ),
                   ),
                   if (bill != null) ...[
-                    const SizedBox(height: 16),
-                    Text('Payment history', style: theme.textTheme.titleMedium),
+                    const SectionHeader('Payment history', icon: Icons.receipt_long_outlined),
                     StreamBuilder<List<PaymentModel>>(
                       stream: widget.firestoreService.watchPayments(widget.customerId),
                       builder: (context, paySnap) {
@@ -181,9 +178,7 @@ class _BillViewScreenState extends State<BillViewScreen> {
                       },
                     ),
                   ],
-                  const SizedBox(height: 16),
-                  Text('Day-wise breakup', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
+                  const SectionHeader('Day-wise breakup', icon: Icons.calendar_month_outlined),
                   if (delivered.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 24),

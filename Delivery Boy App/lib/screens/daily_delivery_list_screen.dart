@@ -48,6 +48,66 @@ Color _statusColor(BuildContext context, DeliveryStatus s) {
   };
 }
 
+class _ProgressHeader extends StatelessWidget {
+  const _ProgressHeader({required this.completed, required this.total});
+
+  final int completed;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final progress = total == 0 ? 0.0 : completed / total;
+    return Card(
+      margin: EdgeInsets.zero,
+      color: AppTheme.brandNavy,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 48,
+              height: 48,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 4,
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    valueColor: const AlwaysStoppedAnimation(AppTheme.brandGold),
+                  ),
+                  Icon(Icons.local_shipping_outlined,
+                      color: Colors.white.withValues(alpha: 0.9), size: 20),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$completed of $total delivered',
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    "Today's route",
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.white.withValues(alpha: 0.8)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DailyDeliveryListScreenState extends State<DailyDeliveryListScreen> {
   final _searchController = TextEditingController();
   String _query = '';
@@ -269,11 +329,9 @@ class _DailyDeliveryListScreenState extends State<DailyDeliveryListScreen> {
         stream: _deliveries,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Could not load your list. Check your connection.'),
-              ),
+            return const EmptyState(
+              icon: Icons.error_outline,
+              message: 'Could not load your list. Check your connection.',
             );
           }
           if (!snapshot.hasData) {
@@ -289,46 +347,48 @@ class _DailyDeliveryListScreenState extends State<DailyDeliveryListScreen> {
               final shown = filterDeliveryEntries(all, query: _query);
               final grouped = groupBySocietyAndBlock(shown);
 
+              final completed =
+                  all.where((e) => e.delivery.status == DeliveryStatus.delivered).length;
+              final actionableTotal = all
+                  .where((e) => e.delivery.status != DeliveryStatus.skipped)
+                  .length;
+
               return Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
+                    child: _ProgressHeader(completed: completed, total: actionableTotal),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
                     child: TextField(
                       controller: _searchController,
                       onChanged: (v) => setState(() => _query = v),
                       decoration: const InputDecoration(
                         hintText: 'Search society or customer name',
                         prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(),
                       ),
                     ),
                   ),
                   Expanded(
                     child: all.isEmpty
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24),
-                              child: Text(
-                                'No deliveries assigned for today. Ask Admin '
+                        ? const EmptyState(
+                            icon: Icons.local_shipping_outlined,
+                            message: 'No deliveries assigned for today. Ask Admin '
                                 'to check your assigned customers, or that '
                                 "today's list has been generated.",
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
                           )
                         : shown.isEmpty
-                            ? const Center(child: Text('No matches.'))
+                            ? const EmptyState(
+                                icon: Icons.search_off, message: 'No matches.')
                             : ListView(
                                 children: [
                                   for (final society in grouped.keys) ...[
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                          16, 12, 16, 4),
-                                      child: Text(society,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleMedium),
-                                    ),
+                                    SectionHeader(society,
+                                        icon: Icons.apartment_outlined,
+                                        topGap: society == grouped.keys.first),
                                     for (final block
                                         in grouped[society]!.keys) ...[
                                       Padding(
@@ -337,7 +397,9 @@ class _DailyDeliveryListScreenState extends State<DailyDeliveryListScreen> {
                                         child: Text('Block $block',
                                             style: Theme.of(context)
                                                 .textTheme
-                                                .labelLarge),
+                                                .labelLarge
+                                                ?.copyWith(
+                                                    color: AppTheme.brandGold)),
                                       ),
                                       for (final e in grouped[society]![block]!)
                                         _tile(e),

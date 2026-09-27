@@ -81,13 +81,19 @@ class _CustomerActivityReportScreenState
         ],
       );
 
+  static const Map<String, IconData> _sectionIcons = {
+    'New joins': Icons.person_add_alt_1,
+    'Paused / deactivated': Icons.pause_circle_outline,
+    'Pending change requests': Icons.hourglass_empty,
+  };
+
   Widget _section(String title, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-          child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SectionHeader(title, icon: _sectionIcons[title]),
         ),
         if (children.isEmpty)
           const Padding(
@@ -108,7 +114,8 @@ class _CustomerActivityReportScreenState
         future: _data,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text('Could not load this report.'));
+            return const EmptyState(
+              icon: Icons.error_outline, message: 'Could not load this report.');
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());

@@ -130,12 +130,10 @@ class _DeliverySummaryScreenState extends State<DeliverySummaryScreen> {
         future: _summaries,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Could not load your summary. Check your '
-                    'connection and try again.'),
-              ),
+            return const EmptyState(
+              icon: Icons.error_outline,
+              message: 'Could not load your summary. Check your '
+                    'connection and try again.',
             );
           }
           if (!snapshot.hasData) {

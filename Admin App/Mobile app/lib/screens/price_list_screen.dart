@@ -136,12 +136,9 @@ class _PriceListScreenState extends State<PriceListScreen> {
         stream: _prices,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Could not load prices. Check your connection.',
-                    textAlign: TextAlign.center),
-              ),
+            return const EmptyState(
+              icon: Icons.error_outline,
+              message: 'Could not load prices. Check your connection.',
             );
           }
           if (!snapshot.hasData) {
@@ -152,10 +149,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               for (final type in MilkType.values) _currentCard(type, prices),
-              const SizedBox(height: 16),
-              Text('Price history',
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
+              const SectionHeader('Price history', icon: Icons.history),
               _history(prices),
             ],
           );

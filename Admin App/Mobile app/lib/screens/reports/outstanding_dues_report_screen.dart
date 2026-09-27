@@ -77,7 +77,8 @@ class _OutstandingDuesReportScreenState
         future: _rows,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text('Could not load this report.'));
+            return const EmptyState(
+              icon: Icons.error_outline, message: 'Could not load this report.');
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -147,7 +148,7 @@ class _OutstandingDuesReportScreenState
               ),
               Expanded(
                 child: shown.isEmpty
-                    ? const Center(child: Text('Nothing outstanding.'))
+                    ? const EmptyState(icon: Icons.check_circle_outline, message: 'Nothing outstanding.')
                     : ListView.separated(
                         itemCount: shown.length,
                         separatorBuilder: (_, __) => const Divider(height: 1),

@@ -332,9 +332,17 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
   String _quantityLabel(double litres) =>
       litres < 1 ? '${(litres * 1000).round()} ml' : '$litres L';
 
-  Widget _sectionTitle(String text) => Padding(
-        padding: const EdgeInsets.only(top: 24, bottom: 12),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+  static const Map<String, IconData> _sectionIcons = {
+    'Customer': Icons.person_outline,
+    'Address': Icons.home_outlined,
+    'Delivery': Icons.two_wheeler_outlined,
+    'Milk subscription': Icons.local_drink_outlined,
+  };
+
+  Widget _sectionTitle(String text) => SectionHeader(
+        text,
+        icon: _sectionIcons[text],
+        topGap: text != 'Customer',
       );
 
   Widget _gap() => const SizedBox(height: 16);

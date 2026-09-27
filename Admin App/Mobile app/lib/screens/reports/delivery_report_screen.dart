@@ -93,7 +93,8 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
         future: _rows,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text('Could not load this report.'));
+            return const EmptyState(
+              icon: Icons.error_outline, message: 'Could not load this report.');
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -183,7 +184,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
               ),
               Expanded(
                 child: shown.isEmpty
-                    ? const Center(child: Text('No deliveries match.'))
+                    ? const EmptyState(icon: Icons.search_off, message: 'No deliveries match.')
                     : ListView.separated(
                         itemCount: shown.length,
                         separatorBuilder: (_, __) => const Divider(height: 1),

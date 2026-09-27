@@ -238,8 +238,7 @@ class _BillGenerationScreenState extends State<BillGenerationScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Text('Payment history', style: theme.textTheme.titleMedium),
+                  const SectionHeader('Payment history', icon: Icons.receipt_long_outlined),
                   StreamBuilder<List<PaymentModel>>(
                     stream: widget.firestoreService.watchPayments(widget.customer.id),
                     builder: (context, snapshot) {
@@ -264,9 +263,7 @@ class _BillGenerationScreenState extends State<BillGenerationScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 16),
-                  Text('Day-wise breakup', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
+                  const SectionHeader('Day-wise breakup', icon: Icons.calendar_month_outlined),
                   if (_lineItems.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),

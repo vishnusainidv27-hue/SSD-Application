@@ -214,12 +214,10 @@ class _DeliveryTrackingScreenState extends State<DeliveryTrackingScreen> {
         stream: _deliveries,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Could not load deliveries. Check your '
-                    'connection and Firestore rules.'),
-              ),
+            return const EmptyState(
+              icon: Icons.error_outline,
+              message: 'Could not load deliveries. Check your '
+                    'connection and Firestore rules.',
             );
           }
           if (!snapshot.hasData) {

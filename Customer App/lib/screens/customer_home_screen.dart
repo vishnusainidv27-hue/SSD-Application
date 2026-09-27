@@ -6,11 +6,11 @@ import 'bill_view_screen.dart';
 import 'delivery_history_screen.dart';
 import 'requests_screen.dart';
 
-/// Dashboard for a signed-in Customer (Requirements §5.2): today's/tomorrow's
-/// scheduled delivery (computed from the subscription plus any in-effect
-/// exception — Phase 3/5), current outstanding amount (from the latest
-/// Admin-generated bill, once one exists), and quick links to
-/// history/bill/requests.
+/// Dashboard for a signed-in Customer (Requirements §5.2): a greeting header,
+/// today's/tomorrow's scheduled delivery (computed from the subscription plus
+/// any in-effect exception — Phase 3/5), current outstanding amount (from the
+/// latest Admin-generated bill, once one exists), and quick links to
+/// history/bill/requests. See `docs/DESIGN_SYSTEM.md` for the layout pattern.
 class CustomerHomeScreen extends StatelessWidget {
   const CustomerHomeScreen({
     super.key,
@@ -40,18 +40,20 @@ class CustomerHomeScreen extends StatelessWidget {
       body: RefreshIndicator(
         onRefresh: () async {}, // streams keep this live; pull just settles it
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           children: [
+            _WelcomeHeader(customerId: customerId, firestoreService: firestoreService),
+            const SectionHeader('Your delivery', icon: Icons.local_shipping_outlined),
             _UpcomingDeliveryCard(
               customerId: customerId,
               firestoreService: firestoreService,
             ),
-            const SizedBox(height: 16),
+            const SectionHeader('Billing', icon: Icons.account_balance_wallet_outlined),
             _OutstandingCard(
               customerId: customerId,
               firestoreService: firestoreService,
             ),
-            const SizedBox(height: 16),
+            const SectionHeader('Quick actions', icon: Icons.bolt_outlined),
             FilledButton.icon(
               icon: const Icon(Icons.edit_calendar_outlined),
               label: const Text('Change quantity / skip a day'),
@@ -64,7 +66,7 @@ class CustomerHomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
                 Expanded(
@@ -81,7 +83,7 @@ class CustomerHomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.receipt_long_outlined),
@@ -101,6 +103,68 @@ class CustomerHomeScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _WelcomeHeader extends StatelessWidget {
+  const _WelcomeHeader({required this.customerId, required this.firestoreService});
+
+  final String customerId;
+  final FirestoreService firestoreService;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return FutureBuilder<CustomerModel?>(
+      future: firestoreService.getCustomer(customerId),
+      builder: (context, snapshot) {
+        final name = snapshot.data?.name;
+        return Card(
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+          color: AppTheme.brandNavy,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: Colors.white.withValues(alpha: 0.15),
+                  child: Text(
+                    (name == null || name.trim().isEmpty)
+                        ? '🥛'
+                        : name.trim()[0].toUpperCase(),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        (name == null || name.trim().isEmpty)
+                            ? 'Welcome back'
+                            : 'Welcome back, ${name.trim().split(' ').first}',
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Here\'s what\'s happening with your milk.',
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -125,7 +189,7 @@ class _UpcomingDeliveryCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: StreamBuilder<List<SubscriptionModel>>(
           stream: firestoreService.watchSubscriptions(customerId),
           builder: (context, subSnap) {
@@ -154,13 +218,9 @@ class _UpcomingDeliveryCard extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Today', style: theme.textTheme.labelLarge),
-                    const SizedBox(height: 4),
-                    _planLine(theme, todayPlan),
-                    const SizedBox(height: 12),
-                    Text('Tomorrow', style: theme.textTheme.labelLarge),
-                    const SizedBox(height: 4),
-                    _planLine(theme, tomorrowPlan),
+                    _dayRow(theme, 'Today', Icons.today_outlined, todayPlan),
+                    const Divider(),
+                    _dayRow(theme, 'Tomorrow', Icons.event_outlined, tomorrowPlan),
                   ],
                 );
               },
@@ -171,19 +231,41 @@ class _UpcomingDeliveryCard extends StatelessWidget {
     );
   }
 
+  Widget _dayRow(
+      ThemeData theme, String label, IconData icon, List<PlannedDelivery> plan) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: AppTheme.brandNavy),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: theme.textTheme.labelLarge),
+              const SizedBox(height: 2),
+              _planLine(theme, plan),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _planLine(ThemeData theme, List<PlannedDelivery> plan) {
     if (plan.isEmpty) {
       return const Text('Nothing scheduled.');
     }
     if (plan.every((p) => p.skipped)) {
-      return Text('No delivery (skipped)', style: theme.textTheme.bodyMedium);
+      return Text('No delivery (skipped)',
+          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error));
     }
     return Text(
       [
         for (final p in plan)
           if (!p.skipped) '${_milkLabel(p.milkType)}: ${_qtyLabel(p.quantityLitres)}',
       ].join(' · '),
-      style: theme.textTheme.titleMedium,
+      style: theme.textTheme.titleMedium?.copyWith(color: AppTheme.brandGreen),
     );
   }
 }
@@ -205,7 +287,7 @@ class _OutstandingCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: StreamBuilder<List<BillModel>>(
           stream: firestoreService.watchBills(customerId),
           builder: (context, snapshot) {
@@ -220,18 +302,36 @@ class _OutstandingCard extends StatelessWidget {
               return const Text('No bills yet.');
             }
             final latest = bills.first; // watchBills sorts newest first
+            final owesMoney = latest.netPayable > 0;
             return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Outstanding', style: theme.textTheme.labelLarge),
-                    Text('₹${amountFormat.format(latest.netPayable)}',
-                        style: theme.textTheme.headlineSmall),
-                  ],
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: (owesMoney ? theme.colorScheme.error : AppTheme.brandGreen)
+                        .withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    owesMoney ? Icons.priority_high : Icons.check,
+                    color: owesMoney ? theme.colorScheme.error : AppTheme.brandGreen,
+                  ),
                 ),
-                Text('as of ${dateFormat.format(latest.periodTo)}'),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Outstanding', style: theme.textTheme.labelLarge),
+                      Text('₹${amountFormat.format(latest.netPayable)}',
+                          style: theme.textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+                Text('as of ${dateFormat.format(latest.periodTo)}',
+                    style: theme.textTheme.bodySmall),
               ],
             );
           },

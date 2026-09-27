@@ -95,12 +95,10 @@ class _RequestsScreenState extends State<RequestsScreen> {
         stream: _requests,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Could not load your requests. Check your '
-                    'connection and try again.'),
-              ),
+            return const EmptyState(
+              icon: Icons.error_outline,
+              message: 'Could not load your requests. Check your '
+                    'connection and try again.',
             );
           }
           if (!snapshot.hasData) {
@@ -109,15 +107,10 @@ class _RequestsScreenState extends State<RequestsScreen> {
           final requests = [...snapshot.data!]
             ..sort((a, b) => b.date.compareTo(a.date));
           if (requests.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'No requests yet. Tap "New request" to skip a day or '
+            return const EmptyState(
+              icon: Icons.edit_calendar_outlined,
+              message: 'No requests yet. Tap "New request" to skip a day or '
                   'change your quantity.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
             );
           }
           return ListView.separated(
